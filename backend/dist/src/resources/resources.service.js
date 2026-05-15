@@ -78,12 +78,12 @@ let ResourcesService = class ResourcesService {
     async create(dto) {
         const { credUsername, credPassword, credExtra, ...resourceData } = dto;
         const resource = await this.prisma.resource.create({ data: resourceData });
-        if (credUsername && credPassword) {
+        if (credUsername || credPassword) {
             await this.prisma.credential.create({
                 data: {
                     resourceId: resource.id,
-                    username: this.crypto.encrypt(credUsername),
-                    password: this.crypto.encrypt(credPassword),
+                    username: this.crypto.encrypt(credUsername || ''),
+                    password: this.crypto.encrypt(credPassword || ''),
                     extra: credExtra ? this.crypto.encrypt(credExtra) : '',
                 },
             });
@@ -108,13 +108,13 @@ let ResourcesService = class ResourcesService {
             if (existingCred) {
                 await this.prisma.credential.update({ where: { resourceId: id }, data: credData });
             }
-            else if (credUsername && credPassword) {
+            else if (credUsername || credPassword) {
                 await this.prisma.credential.create({
                     data: {
                         resourceId: id,
-                        username: credData.username || this.crypto.encrypt(''),
-                        password: credData.password || this.crypto.encrypt(''),
-                        extra: credData.extra || '',
+                        username: credData.username ?? this.crypto.encrypt(''),
+                        password: credData.password ?? this.crypto.encrypt(''),
+                        extra: credData.extra ?? '',
                     },
                 });
             }

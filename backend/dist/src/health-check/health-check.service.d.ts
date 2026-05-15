@@ -14,9 +14,9 @@ export declare class HealthCheckService {
     getHistory(resourceId: string, limit?: number): Promise<{
         error: string | null;
         id: string;
+        status: string;
         checkedAt: Date;
         resourceId: string;
-        status: string;
         statusCode: number | null;
         responseMs: number | null;
     }[]>;

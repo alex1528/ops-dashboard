@@ -83,16 +83,21 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 
 - 用户名: admin
 - 密码: 见 .env 中 ADMIN_PASSWORD
+- 角色: 管理员（admin）
 
 ## 功能
 
 - ✅ 状态看板：展示所有目标资源的在线状态、响应时间
 - ✅ 只读状态页：`/status` 无需登录的简易监控页面，自动刷新
 - ✅ 资源管理：新增/编辑/删除目标网址及其分组
-- ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；用户名为空而密码有值时同样正常存取；编辑时两字段均留空则不覆盖已存储值
+- ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，查看凭据带 loading 反馈；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；用户名为空而密码有值时同样正常存取；编辑时两字段均留空则不覆盖已存储值
+- ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色
+- ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA
+- ✅ 邮件通知：可配置 SMTP 发送邮件到用户邮箱（未配置时自动跳过）
+- ✅ 系统版本：管理后台侧边栏显示当前 git tag 版本号
 - ✅ 健康检查：定时 HTTP 探测 + 手动触发，支持按资源关闭（免检默认健康）
 - ✅ 移动端适配：响应式布局
-- ✅ 操作审计：凭据查看/编辑操作自动记录
+- ✅ 操作审计：凭据查看/编辑/用户管理/MFA 操作自动记录
 - ✅ 代理自动登录：PocketBase (Beszel)、Certd 适配器 + 通用表单适配器
 - ✅ 半自动登录：验证码系统自动预填凭据 + 人工补验证码
 - ✅ 反向代理网关：认证注入、HTML 重写、URL 代理重写
@@ -105,14 +110,25 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | ---- | ---- | -------- |
 | `/` | 完整看板（含一键直达） | 否（查看），是（操作） |
 | `/status` | 只读状态监控页 | 否 |
-| `/login` | 管理员登录 | - |
+| `/login` | 登录（支持 MFA） | - |
 | `/admin/resources` | 资源管理 | 是 |
+| `/admin/users` | 用户管理 | 是（仅管理员） |
+| `/admin/profile` | 个人设置（MFA 绑定等） | 是 |
 
 ## API 接口
 
 | 方法 | 路径 | 说明 | 需要登录 |
 | ---- | ---- | ---- | -------- |
 | `POST` | `/api/backup` | 手动触发数据库备份 | 是 |
+| `GET` | `/api/users` | 用户列表 | 是（管理员） |
+| `POST` | `/api/users` | 创建用户 | 是（管理员） |
+| `PUT` | `/api/users/:id` | 更新用户 | 是（管理员） |
+| `DELETE` | `/api/users/:id` | 删除用户 | 是（管理员） |
+| `POST` | `/api/mfa/setup` | 生成 MFA 密钥和二维码 | 是 |
+| `POST` | `/api/mfa/verify` | 验证并启用 MFA | 是 |
+| `POST` | `/api/mfa/disable` | 禁用 MFA | 是 |
+| `GET` | `/api/system/version` | 获取系统版本号 | 否 |
+| `POST` | `/api/mail/send` | 发送邮件 | 是（管理员） |
 
 ## 数据库备份与恢复
 
@@ -137,6 +153,11 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `BACKUP_ENABLED` | `true` | 是否启用自动备份 |
 | `BACKUP_CRON` | `0 3 * * *` | 备份 cron 表达式 |
 | `BACKUP_DIR` | `/app/backup` | 容器内备份目录（已挂载至 `./backup`） |
+| `SMTP_HOST` | (empty) | SMTP 服务器地址，留空则禁用邮件功能 |
+| `SMTP_PORT` | `465` | SMTP 端口（465=SSL, 587=STARTTLS） |
+| `SMTP_USER` | (empty) | SMTP 登录用户 |
+| `SMTP_PASS` | (empty) | SMTP 登录密码 |
+| `SMTP_FROM` | (SMTP_USER) | 发件人地址 |
 
 ### 手动操作
 
@@ -153,3 +174,39 @@ docker compose down
 docker volume rm ops-dashboard_db-data       # 清空数据卷
 docker compose up -d                         # 重启时自动从 backup/ 恢复
 ```
+
+## 用户管理
+
+- 仅管理员可在后台 `/admin/users` 创建、编辑、删除用户
+- 不支持用户自注册，所有用户由管理员后台创建
+- 两种角色：
+  - **管理员 (admin)**：拥有全部权限，包括用户管理、邮件发送
+  - **普通用户 (user)**：可访问资源管理、个人设置等常规功能
+- 用户字段：用户名、密码、邮箱、MFA 状态
+
+## MFA 两步验证
+
+- 用户在 `/admin/profile` 自行绑定 MFA
+- 支持 Google Authenticator、Microsoft Authenticator 等标准 TOTP 应用
+- 绑定流程：生成密钥 → 扫描二维码 → 输入 6 位验证码确认
+- 启用后每次登录需额外输入动态验证码
+- 用户可输入当前密码自行禁用 MFA
+- 管理员可在用户管理页面重置他人 MFA
+
+## 邮件通知
+
+配置 SMTP 环境变量后即可使用邮件发送功能：
+
+```bash
+SMTP_HOST=smtp.example.com
+SMTP_PORT=465
+SMTP_USER=ops@example.com
+SMTP_PASS=your-password
+SMTP_FROM=ops@example.com
+```
+
+未配置 SMTP 时，邮件功能自动禁用，不影响其他功能正常运行。
+
+## 系统版本
+
+管理后台侧边栏显示当前系统版本号，版本号取自 git tag（由 `.githooks/post-commit` 自动生成并推送）。

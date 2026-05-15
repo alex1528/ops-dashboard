@@ -108,20 +108,28 @@ export default function ResourcesPage() {
   };
 
   const viewCredential = async (id: string) => {
+    const hide = message.loading('正在获取凭据…', 0);
     try {
       const res = await api.get(`/resources/${id}/credential`);
-      if (!res.data) { message.info('未配置凭据'); return; }
+      hide();
+      if (!res.data || (typeof res.data === 'object' && Object.keys(res.data).length === 0)) {
+        message.info('未配置凭据');
+        return;
+      }
       Modal.info({
         title: '凭据信息',
         content: (
           <div>
-            <p><strong>用户名：</strong>{res.data.username}</p>
-            <p><strong>密码：</strong>{res.data.password}</p>
+            <p><strong>用户名：</strong>{res.data.username || '（空）'}</p>
+            <p><strong>密码：</strong>{res.data.password || '（空）'}</p>
             {res.data.extra && <p><strong>附加：</strong>{res.data.extra}</p>}
           </div>
         ),
       });
-    } catch { message.error('获取失败'); }
+    } catch (err: any) {
+      hide();
+      message.error(err?.response?.data?.message || '凭据获取失败');
+    }
   };
 
   const columns = [

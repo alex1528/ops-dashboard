@@ -19,6 +19,10 @@ const audit_module_1 = require("./audit/audit.module");
 const crypto_module_1 = require("./crypto/crypto.module");
 const proxy_module_1 = require("./proxy/proxy.module");
 const backup_module_1 = require("./backup/backup.module");
+const users_module_1 = require("./users/users.module");
+const mfa_module_1 = require("./mfa/mfa.module");
+const mail_module_1 = require("./mail/mail.module");
+const system_module_1 = require("./system/system.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -38,6 +42,10 @@ exports.AppModule = AppModule = __decorate([
             audit_module_1.AuditModule,
             proxy_module_1.ProxyModule,
             backup_module_1.BackupModule,
+            users_module_1.UsersModule,
+            mfa_module_1.MfaModule,
+            mail_module_1.MailModule,
+            system_module_1.SystemModule,
         ],
     })
 ], AppModule);

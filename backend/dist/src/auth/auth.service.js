@@ -47,6 +47,7 @@ const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const prisma_service_1 = require("../prisma/prisma.service");
+const otplib_1 = require("otplib");
 let AuthService = class AuthService {
     constructor(prisma, jwt) {
         this.prisma = prisma;
@@ -59,12 +60,23 @@ let AuthService = class AuthService {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid)
             throw new common_1.UnauthorizedException('Invalid credentials');
-        return { id: user.id, username: user.username };
+        return user;
     }
-    async login(username, password) {
+    async login(username, password, mfaCode) {
         const user = await this.validateUser(username, password);
-        const payload = { sub: user.id, username: user.username };
-        return { access_token: this.jwt.sign(payload), user };
+        if (user.mfaEnabled && user.mfaSecret) {
+            if (!mfaCode) {
+                return { mfaRequired: true, message: '请输入 MFA 验证码' };
+            }
+            const valid = (0, otplib_1.verifySync)({ token: mfaCode, secret: user.mfaSecret });
+            if (!valid)
+                throw new common_1.BadRequestException('MFA 验证码错误');
+        }
+        const payload = { sub: user.id, username: user.username, role: user.role };
+        return {
+            access_token: this.jwt.sign(payload),
+            user: { id: user.id, username: user.username, role: user.role, email: user.email, mfaEnabled: user.mfaEnabled },
+        };
     }
 };
 exports.AuthService = AuthService;

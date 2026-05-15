@@ -8,11 +8,15 @@ generator client {
 }
 
 model AdminUser {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String // bcrypt hash
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  username   String   @unique
+  password   String // bcrypt hash
+  email      String   @default("")
+  role       String   @default("user") // admin | user
+  mfaSecret  String   @default("") // TOTP secret, encrypted
+  mfaEnabled Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Resource {

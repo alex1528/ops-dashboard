@@ -18,9 +18,9 @@ export declare class HealthCheckController {
         lastHealth: {
             error: string | null;
             id: string;
+            status: string;
             checkedAt: Date;
             resourceId: string;
-            status: string;
             statusCode: number | null;
             responseMs: number | null;
         } | {
@@ -51,9 +51,9 @@ export declare class HealthCheckController {
     getHistory(id: string): Promise<{
         error: string | null;
         id: string;
+        status: string;
         checkedAt: Date;
         resourceId: string;
-        status: string;
         statusCode: number | null;
         responseMs: number | null;
     }[]>;

@@ -15,9 +15,9 @@ export declare class ResourcesController {
         lastHealth: {
             error: string | null;
             id: string;
+            status: string;
             checkedAt: Date;
             resourceId: string;
-            status: string;
             statusCode: number | null;
             responseMs: number | null;
         };
@@ -31,8 +31,8 @@ export declare class ResourcesController {
         loginMode: string;
         description: string;
         sortOrder: number;
-        healthCheckEnabled: boolean;
         enabled: boolean;
+        healthCheckEnabled: boolean;
     }[]>;
     findOne(id: string): Promise<{
         credential: {
@@ -44,9 +44,9 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
+            status: string;
             checkedAt: Date;
             resourceId: string;
-            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
@@ -59,8 +59,8 @@ export declare class ResourcesController {
         loginMode: string;
         description: string;
         sortOrder: number;
-        healthCheckEnabled: boolean;
         enabled: boolean;
+        healthCheckEnabled: boolean;
     }>;
     getCredential(id: string, req: any): Promise<{
         username: string;
@@ -77,9 +77,9 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
+            status: string;
             checkedAt: Date;
             resourceId: string;
-            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
@@ -92,8 +92,8 @@ export declare class ResourcesController {
         loginMode: string;
         description: string;
         sortOrder: number;
-        healthCheckEnabled: boolean;
         enabled: boolean;
+        healthCheckEnabled: boolean;
     }>;
     update(id: string, dto: UpdateResourceDto, req: any): Promise<{
         credential: {
@@ -105,9 +105,9 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
+            status: string;
             checkedAt: Date;
             resourceId: string;
-            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
@@ -120,8 +120,8 @@ export declare class ResourcesController {
         loginMode: string;
         description: string;
         sortOrder: number;
-        healthCheckEnabled: boolean;
         enabled: boolean;
+        healthCheckEnabled: boolean;
     }>;
     remove(id: string, req: any): Promise<{
         deleted: boolean;
