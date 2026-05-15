@@ -51,24 +51,23 @@ export default function ResourcesPage() {
   const openEdit = async (r: Resource) => {
     setEditingId(r.id);
     form.resetFields();
-    form.setFieldsValue({
+    // 先获取凭据，确保弹窗打开时所有字段（含密码）已有值，避免 destroyOnClose 场景下竞态问题
+    const values: Record<string, any> = {
       name: r.name, url: r.url, group: r.group,
       loginMode: r.loginMode, description: r.description,
       sortOrder: r.sortOrder, enabled: r.enabled,
       healthCheckEnabled: r.healthCheckEnabled,
-    });
-    setModalOpen(true);
-    // 异步获取已存储的凭据并回填（密码由 Input.Password 自动显示为星号）
+    };
     try {
       const { data } = await api.get(`/resources/${r.id}/credential`);
       if (data) {
-        form.setFieldsValue({
-          credUsername: data.username ?? '',
-          credPassword: data.password ?? '',
-          credExtra: data.extra ?? '',
-        });
+        values.credUsername = data.username ?? '';
+        values.credPassword = data.password ?? '';
+        values.credExtra = data.extra ?? '';
       }
     } catch { /* 凭据获取失败时保持空白 */ }
+    form.setFieldsValue(values);
+    setModalOpen(true);
   };
 
   const handleSave = async () => {
@@ -239,13 +238,13 @@ export default function ResourcesPage() {
 
           <Typography.Title level={5}>登录凭据（加密存储）</Typography.Title>
           <Form.Item name="credUsername" label="用户名">
-            <Input placeholder="登录用户名" autoComplete="off" />
+            <Input placeholder="留空则不更新" autoComplete="off" />
           </Form.Item>
           <Form.Item name="credPassword" label="密码">
-            <Input.Password placeholder="登录密码" autoComplete="new-password" />
+            <Input.Password placeholder="留空则不更新" autoComplete="new-password" />
           </Form.Item>
           <Form.Item name="credExtra" label="附加信息">
-            <Input.TextArea rows={2} placeholder="可选，如 API Key 等额外认证字段" />
+            <Input.TextArea rows={2} placeholder="留空则不更新" />
           </Form.Item>
         </Form>
       </Modal>
