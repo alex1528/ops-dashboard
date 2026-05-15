@@ -48,7 +48,7 @@ export default function ResourcesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (r: Resource) => {
+  const openEdit = async (r: Resource) => {
     setEditingId(r.id);
     form.resetFields();
     form.setFieldsValue({
@@ -58,6 +58,17 @@ export default function ResourcesPage() {
       healthCheckEnabled: r.healthCheckEnabled,
     });
     setModalOpen(true);
+    // 异步获取已存储的凭据并回填（密码由 Input.Password 自动显示为星号）
+    try {
+      const { data } = await api.get(`/resources/${r.id}/credential`);
+      if (data) {
+        form.setFieldsValue({
+          credUsername: data.username ?? '',
+          credPassword: data.password ?? '',
+          credExtra: data.extra ?? '',
+        });
+      }
+    } catch { /* 凭据获取失败时保持空白 */ }
   };
 
   const handleSave = async () => {
@@ -228,10 +239,10 @@ export default function ResourcesPage() {
 
           <Typography.Title level={5}>登录凭据（加密存储）</Typography.Title>
           <Form.Item name="credUsername" label="用户名">
-            <Input placeholder="留空则不更新" />
+            <Input placeholder="登录用户名" autoComplete="off" />
           </Form.Item>
           <Form.Item name="credPassword" label="密码">
-            <Input.Password placeholder="留空则不更新" />
+            <Input.Password placeholder="登录密码" autoComplete="new-password" />
           </Form.Item>
           <Form.Item name="credExtra" label="附加信息">
             <Input.TextArea rows={2} placeholder="可选，如 API Key 等额外认证字段" />
