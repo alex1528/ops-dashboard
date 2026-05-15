@@ -25,6 +25,9 @@ FROM node:20-alpine
 WORKDIR /app
 RUN apk add --no-cache tini
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 COPY --from=backend-build /build/dist ./dist
 COPY --from=backend-build /build/node_modules ./node_modules
 COPY --from=backend-build /build/prisma ./prisma

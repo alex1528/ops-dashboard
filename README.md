@@ -29,10 +29,14 @@ openssl rand -hex 32
 
 ### 2. Docker 部署
 
-**构建镜像**（前后端均在 Docker 多阶段构建中完成）：
+**构建镜像**（前后端均在 Docker 多阶段构建中完成，自动注入版本号）：
 
 ```bash
-docker compose build --no-cache
+# 推荐：自动获取 git tag 作为版本号
+APP_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev") docker compose build --no-cache
+
+# 或手动指定版本号
+APP_VERSION=v1.0.0 docker compose build --no-cache
 ```
 
 **启动服务**：
@@ -42,7 +46,7 @@ docker compose up -d
 ```
 
 > 镜像构建完成后，`docker-compose.yml` 中的 `build:` 段可选删除，直接使用已构建的 `ops-dashboard:latest` 镜像运行。
-> 也可通过 `docker build -t ops-dashboard:latest .` 单独构建镜像。
+> 也可通过 `docker build -t ops-dashboard:latest --build-arg APP_VERSION=v1.0.0 .` 单独构建镜像。
 
 访问 <http://localhost:6000>
 
@@ -175,6 +179,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `SMTP_USER` | (empty) | SMTP 登录用户 |
 | `SMTP_PASS` | (empty) | SMTP 登录密码 |
 | `SMTP_FROM` | (SMTP_USER) | 发件人地址 |
+| `APP_VERSION` | `dev` | 系统版本号（Docker 构建时通过 build arg 注入） |
 
 ### 手动操作
 
@@ -226,4 +231,9 @@ SMTP_FROM=ops@example.com
 
 ## 系统版本
 
-管理后台「关于」页面 (`/admin/about`) 展示当前系统版本号、技术栈和功能模块信息。版本号取自 git tag（由 `.githooks/post-commit` 自动生成并推送）。
+管理后台「关于」页面 (`/admin/about`) 展示当前系统版本号、技术栈和功能模块信息。
+
+版本号获取优先级：
+1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入（推荐使用 git tag）
+2. **本地开发**：运行时自动读取 `git describe --tags --abbrev=0`
+3. **回退值**：以上均不可用时显示 `dev`

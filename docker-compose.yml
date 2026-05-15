@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     network_mode: host
     environment:
       - DATABASE_URL=file:/app/data/ops-dashboard.db

@@ -8,15 +8,21 @@ export class SystemController {
   @Get('version')
   getVersion() {
     if (!this.cachedVersion) {
-      try {
-        // Get latest tag from git
-        const tag = execSync('git describe --tags --abbrev=0 2>/dev/null || echo "dev"', {
-          encoding: 'utf-8',
-          timeout: 3000,
-        }).trim();
-        this.cachedVersion = tag || 'dev';
-      } catch {
-        this.cachedVersion = 'dev';
+      // 1. Prefer APP_VERSION env (injected during Docker build)
+      if (process.env.APP_VERSION) {
+        this.cachedVersion = process.env.APP_VERSION;
+      } else {
+        // 2. Fallback: read git tag at runtime (local dev)
+        try {
+          const tag = execSync('git describe --tags --abbrev=0', {
+            encoding: 'utf-8',
+            timeout: 3000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          }).trim();
+          this.cachedVersion = tag || 'dev';
+        } catch {
+          this.cachedVersion = 'dev';
+        }
       }
     }
     return { version: this.cachedVersion };
