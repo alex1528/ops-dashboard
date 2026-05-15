@@ -29,11 +29,22 @@ openssl rand -hex 32
 
 ### 2. Docker 部署
 
+**构建镜像**（前后端均在 Docker 多阶段构建中完成）：
+
 ```bash
-docker compose up -d --build
+docker compose build --no-cache
 ```
 
-访问 <http://localhost:3000>
+**启动服务**：
+
+```bash
+docker compose up -d
+```
+
+> 镜像构建完成后，`docker-compose.yml` 中的 `build:` 段可选删除，直接使用已构建的 `ops-dashboard:latest` 镜像运行。
+> 也可通过 `docker build -t ops-dashboard:latest .` 单独构建镜像。
+
+访问 <http://localhost:6000>
 
 ### 3. 本地开发
 

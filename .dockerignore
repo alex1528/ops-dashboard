@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+backend/data
+backend/*.db
+backup
+.git
+.githooks
+.env
+*.md

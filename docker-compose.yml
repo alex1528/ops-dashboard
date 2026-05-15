@@ -1,5 +1,6 @@
 services:
-  backend:
+  ops-dashboard:
+    image: ops-dashboard:latest
     build:
       context: .
       dockerfile: Dockerfile
