@@ -111,26 +111,35 @@ export default function UsersPage() {
     },
     {
       title: '操作', key: 'actions', width: 200,
-      render: (_: any, r: User) => (
-        <Space size="small">
-          <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
-          {r.mfaEnabled && (
-            <Popconfirm title="确认重置此用户的 MFA？" onConfirm={() => handleResetMfa(r.id)}>
-              <Tooltip title="重置 MFA"><Button size="small" icon={<LockOutlined />} /></Tooltip>
-            </Popconfirm>
-          )}
-          <Popconfirm title="确认删除此用户？" onConfirm={() => handleDelete(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
+      render: (_: any, r: User) => {
+        const isLastAdmin = r.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1;
+        return (
+          <Space size="small">
+            <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+            {r.mfaEnabled && (
+              <Popconfirm title="确认重置此用户的 MFA？" onConfirm={() => handleResetMfa(r.id)}>
+                <Tooltip title="重置 MFA"><Button size="small" icon={<LockOutlined />} /></Tooltip>
+              </Popconfirm>
+            )}
+            <Tooltip title={isLastAdmin ? '不能删除最后一个管理员' : '删除用户'}>
+              <Popconfirm
+                title="确认删除此用户？"
+                onConfirm={() => handleDelete(r.id)}
+                disabled={isLastAdmin}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} disabled={isLastAdmin} />
+              </Popconfirm>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
   ];
 
   return (
     <div>
       <div className="resources-header">
-        <Typography.Title level={4} style={{ margin: 0 }}>用户管理</Typography.Title>
+        <Typography.Title level={4} className="page-title-inline">用户管理</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增用户</Button>
       </div>
 

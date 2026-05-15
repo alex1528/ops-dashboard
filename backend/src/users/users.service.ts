@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
@@ -70,6 +70,13 @@ export class UsersService {
   async remove(id: string) {
     const existing = await this.prisma.adminUser.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
+    // Prevent deleting the last admin user — would lock out the system
+    if (existing.role === 'admin') {
+      const adminCount = await this.prisma.adminUser.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) {
+        throw new BadRequestException('不能删除系统中最后一个管理员账号');
+      }
+    }
     await this.prisma.adminUser.delete({ where: { id } });
     return { deleted: true };
   }

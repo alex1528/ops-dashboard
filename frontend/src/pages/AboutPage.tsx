@@ -42,10 +42,16 @@ export default function AboutPage() {
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label="系统名称">Ops Dashboard</Descriptions.Item>
           <Descriptions.Item label="系统版本">
-            <Space>
-              {loading ? <Spin size="small" /> : <Text strong>{version}</Text>}
-              <Text type="secondary">(git tag)</Text>
-            </Space>
+            {loading ? (
+              <Spin size="small" />
+            ) : (
+              <Space>
+                <Text strong>{version}</Text>
+                <Text type="secondary">
+                  {version === 'dev' ? '(本地开发模式)' : '(release)'}
+                </Text>
+              </Space>
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="技术栈">
             <Space wrap>

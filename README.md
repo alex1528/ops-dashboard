@@ -14,7 +14,8 @@
 
 ```bash
 cp .env.example .env
-# 编辑 .env，修改 JWT_SECRET、MASTER_KEY、ADMIN_PASSWORD
+# 必填：修改 JWT_SECRET、MASTER_KEY、ADMIN_PASSWORD
+# 可选：配置 SMTP_HOST 等邮件通知字段
 ```
 
 生成密钥:
@@ -32,10 +33,13 @@ openssl rand -hex 32
 **构建镜像**（前后端均在 Docker 多阶段构建中完成，自动注入版本号）：
 
 ```bash
-# 推荐：自动获取 git tag 作为版本号
-APP_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev") docker compose build --no-cache
+# Linux / macOS — 推荐使用构建脚本（自动获取 git tag）
+./build.sh --no-cache
 
-# 或手动指定版本号
+# Windows PowerShell
+.\build.ps1 --no-cache
+
+# 手动指定版本号
 APP_VERSION=v1.0.0 docker compose build --no-cache
 ```
 
@@ -205,10 +209,12 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 
 - 仅管理员可在后台 `/admin/users` 创建、编辑、删除用户
 - 不支持用户自注册，所有用户由管理员后台创建
+- 初始管理员账号 `admin` 由系统自动创建，始终为列表第一项
 - 两种角色：
   - **管理员 (admin)**：拥有全部权限，包括用户管理、邮件发送
   - **普通用户 (user)**：可访问资源管理、个人设置等常规功能
-- 用户字段：用户名、密码、邮箱、MFA 状态
+- 用户字段均可编辑：邮箱、角色、密码（留空不修改）
+- 安全保护：系统中最后一个管理员账号不可被删除，防止系统失去管理入口
 
 ## MFA 两步验证
 
@@ -239,6 +245,6 @@ SMTP_FROM=ops@example.com
 
 版本号获取优先级：
 
-1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入（推荐使用 git tag）
+1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入，使用 [build.sh](build.sh) / [build.ps1](build.ps1) 脚本可自动获取 git tag
 2. **本地开发**：运行时自动读取 `git describe --tags --abbrev=0`
-3. **回退值**：以上均不可用时显示 `dev`
+3. **回退值**：以上均不可用时显示 `dev`，关于页面标注"(本地开发模式)"
