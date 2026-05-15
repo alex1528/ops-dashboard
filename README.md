@@ -165,7 +165,11 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - 若 `ops-dashboard.db` 不存在且 `./backup/ops-dashboard-backup.db` 存在 → 自动复制恢复
 - 若无备份文件 → 以全新空库启动
 
-迁移完成后自动运行 seed 脚本，确保管理员用户存在（已有同名用户则跳过）。
+迁移完成后自动运行 seed 脚本：
+
+- 若指定用户名（`ADMIN_USERNAME`）不存在 → 创建并赋予 `admin` 角色
+- 若已存在但角色非 `admin` → 自动升级为 `admin` 角色（解决旧版迁移将 role 默认为 "user" 的兼容问题）
+- 若已存在且角色为 `admin` → 跳过
 
 ### 环境变量
 

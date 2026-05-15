@@ -9,7 +9,15 @@ async function main() {
 
   const existing = await prisma.adminUser.findUnique({ where: { username } });
   if (existing) {
-    console.log(`Admin user "${username}" already exists, skipping seed.`);
+    // Ensure the designated admin account always has admin role.
+    // This handles the case where the role field was added via migration after
+    // the user was already created (migration default is "user").
+    if (existing.role !== 'admin') {
+      await prisma.adminUser.update({ where: { username }, data: { role: 'admin' } });
+      console.log(`Admin user "${username}" role upgraded to admin.`);
+    } else {
+      console.log(`Admin user "${username}" already exists with admin role, skipping.`);
+    }
     return;
   }
 

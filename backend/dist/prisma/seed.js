@@ -41,7 +41,13 @@ async function main() {
     const password = process.env.ADMIN_PASSWORD || 'admin123';
     const existing = await prisma.adminUser.findUnique({ where: { username } });
     if (existing) {
-        console.log(`Admin user "${username}" already exists, skipping seed.`);
+        if (existing.role !== 'admin') {
+            await prisma.adminUser.update({ where: { username }, data: { role: 'admin' } });
+            console.log(`Admin user "${username}" role upgraded to admin.`);
+        }
+        else {
+            console.log(`Admin user "${username}" already exists with admin role, skipping.`);
+        }
         return;
     }
     const hash = await bcrypt.hash(password, 12);
