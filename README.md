@@ -69,7 +69,9 @@ git config core.hooksPath .githooks
 > **注意**：钩子文件已在仓库中设置为可执行权限（`100755`），无需额外 `chmod`。
 > 若克隆后钩子不生效，可检查：`git ls-files -s .githooks/post-commit`，确认权限位为 `100755`。
 
-此后每次 `git commit` 都会自动创建递增的语义化版本 tag（如 `v0.0.1`、`v0.0.2`…）。
+此后每次 `git commit` 都会自动创建递增的语义化版本 tag（如 `v0.0.1`、`v0.0.2`…）并推送至远端 `origin`。
+
+> 若推送失败（无网络），终端会打印警告，手动补推：`git push origin <tag>`
 
 如需跳过单次自动 tag：
 

@@ -59,6 +59,14 @@ if [ "${1:-}" = "--dry-run" ]; then
 fi
 
 # 创建带注释的 tag，SKIP_AUTO_TAG=1 防止 git tag 钩子（如有）二次触发
-SKIP_AUTO_TAG=1 git tag -a "$next_tag" -m "Auto tag $next_tag" 2>/dev/null && \
-    printf '[post-commit] auto tag: %s\n' "$next_tag" || \
+if SKIP_AUTO_TAG=1 git tag -a "$next_tag" -m "Auto tag $next_tag" 2>/dev/null; then
+    printf '[post-commit] auto tag: %s\n' "$next_tag"
+    # 推送 tag 到远端（origin），失败时仅警告，不阻断提交
+    if git remote get-url origin >/dev/null 2>&1; then
+        git push origin "$next_tag" >/dev/null 2>&1 && \
+            printf '[post-commit] pushed tag %s to origin\n' "$next_tag" || \
+            printf '[post-commit] warn: push tag %s failed (network?), push manually: git push origin %s\n' "$next_tag" "$next_tag"
+    fi
+else
     printf '[post-commit] tag %s already exists, skipped\n' "$next_tag"
+fi
