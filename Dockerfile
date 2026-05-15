@@ -31,9 +31,10 @@ COPY --from=backend-build /build/prisma ./prisma
 COPY --from=backend-build /build/package.json ./
 COPY --from=frontend-build /build/dist ./public
 
-RUN mkdir -p /app/data
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && mkdir -p /app/data /app/backup
 
 ENV NODE_ENV=production
 EXPOSE 6000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
+CMD ["/app/docker-entrypoint.sh"]

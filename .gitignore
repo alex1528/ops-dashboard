@@ -4,3 +4,4 @@ data
 *.db
 .env
 .copilot-specs-cache/
+backup/

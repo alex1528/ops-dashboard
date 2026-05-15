@@ -9,6 +9,7 @@ import { HealthCheckModule } from './health-check/health-check.module';
 import { AuditModule } from './audit/audit.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { ProxyModule } from './proxy/proxy.module';
+import { BackupModule } from './backup/backup.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ProxyModule } from './proxy/proxy.module';
     HealthCheckModule,
     AuditModule,
     ProxyModule,
+    BackupModule,
   ],
 })
 export class AppModule {}

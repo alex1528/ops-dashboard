@@ -14,8 +14,12 @@ services:
       - HEALTH_CHECK_INTERVAL_MS=${HEALTH_CHECK_INTERVAL_MS:-60000}
       - HEALTH_CHECK_TIMEOUT_MS=${HEALTH_CHECK_TIMEOUT_MS:-10000}
       - PORT=6000
+      - BACKUP_ENABLED=${BACKUP_ENABLED:-true}
+      - BACKUP_CRON=${BACKUP_CRON:-0 3 * * *}
+      - BACKUP_DIR=/app/backup
     volumes:
       - db-data:/app/data
+      - ./backup:/app/backup
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:6000/api/health/ping || exit 1"]
@@ -26,3 +30,5 @@ services:
 
 volumes:
   db-data:
+  # ./backup is a bind mount (not a named volume) so backup files are
+  # directly accessible in the project root on the host machine.
