@@ -1,6 +1,0 @@
-node_modules
-dist
-data
-*.db
-.env
-.copilot-specs-cache/
