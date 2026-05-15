@@ -17,16 +17,16 @@ export default function AboutPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div className="page-container-sm">
       <Title level={4}><InfoCircleOutlined /> 关于系统</Title>
 
       <Card style={{ marginBottom: 24 }}>
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+        <div className="about-header-body">
           <Title level={2} style={{ margin: 0 }}>🖥 Ops Dashboard</Title>
           <Text type="secondary" style={{ fontSize: 14, display: 'block', marginTop: 8 }}>
             运维统一入口看板
           </Text>
-          <div style={{ marginTop: 16 }}>
+          <div className="about-version-tag">
             {loading ? (
               <Spin size="small" />
             ) : (

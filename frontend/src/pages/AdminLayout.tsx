@@ -29,7 +29,7 @@ export default function AdminLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsedWidth={0}>
-        <div style={{ color: '#fff', padding: '16px', fontSize: 16, fontWeight: 600, textAlign: 'center' }}>
+        <div className="sider-title">
           Ops Dashboard
         </div>
         <Menu

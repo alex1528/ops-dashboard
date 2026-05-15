@@ -49,7 +49,7 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+    <div className="login-page">
       <Card style={{ width: 380 }}>
         <Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
           Ops Dashboard 管理登录
@@ -86,14 +86,14 @@ export default function Login() {
                 验证
               </Button>
             </Form.Item>
-            <div style={{ textAlign: 'center' }}>
+            <div className="login-text-center">
               <Button type="link" onClick={() => { setMfaRequired(false); setCredentials(null); }}>
                 返回登录
               </Button>
             </div>
           </Form>
         )}
-        <div style={{ textAlign: 'center' }}>
+        <div className="login-text-center">
           <Button type="link" onClick={() => nav('/')}>返回看板</Button>
         </div>
       </Card>

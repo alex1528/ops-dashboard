@@ -43,7 +43,7 @@ export default function SmtpPage() {
   };
 
   return (
-    <div style={{ maxWidth: 700 }}>
+    <div className="page-container">
       <Title level={4}>邮件设置 (SMTP)</Title>
 
       <Card loading={loading} style={{ marginBottom: 24 }}>
@@ -75,7 +75,7 @@ export default function SmtpPage() {
               <Paragraph style={{ margin: 0 }}>
                 请在服务器环境变量或 <Text code>.env</Text> 文件中配置以下变量后重启服务：
               </Paragraph>
-              <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, marginTop: 8, fontSize: 13 }}>
+              <pre className="smtp-env-block">
 {`SMTP_HOST=smtp.example.com
 SMTP_PORT=465
 SMTP_USER=ops@example.com

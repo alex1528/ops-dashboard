@@ -234,6 +234,7 @@ SMTP_FROM=ops@example.com
 管理后台「关于」页面 (`/admin/about`) 展示当前系统版本号、技术栈和功能模块信息。
 
 版本号获取优先级：
+
 1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入（推荐使用 git tag）
 2. **本地开发**：运行时自动读取 `git describe --tags --abbrev=0`
 3. **回退值**：以上均不可用时显示 `dev`

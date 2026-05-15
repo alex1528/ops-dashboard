@@ -71,7 +71,7 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div style={{ maxWidth: 700 }}>
+    <div className="page-container">
       <Title level={4}>个人设置</Title>
 
       <Card style={{ marginBottom: 24 }}>
@@ -103,8 +103,8 @@ export default function ProfilePage() {
         ) : mfaSetup ? (
           <div>
             <Paragraph>请使用 Google Authenticator（或其他 TOTP 应用）扫描以下二维码：</Paragraph>
-            <div style={{ textAlign: 'center', margin: '16px 0' }}>
-              <img src={mfaSetup.qrDataUrl} alt="MFA QR Code" style={{ width: 200, height: 200 }} />
+            <div className="mfa-qr-container">
+              <img src={mfaSetup.qrDataUrl} alt="MFA QR Code" />
             </div>
             <Paragraph type="secondary">
               手动输入密钥：<Text code copyable>{mfaSetup.secret}</Text>
