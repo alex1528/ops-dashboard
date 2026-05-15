@@ -16,6 +16,7 @@ if [ ! -f "$DB_FILE" ]; then
   fi
 fi
 
-# Run Prisma migrations then start the application
+# Run Prisma migrations, seed admin user, then start the application
 npx prisma migrate deploy
+node dist/prisma/seed.js
 exec node dist/src/main

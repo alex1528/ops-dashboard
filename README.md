@@ -148,7 +148,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 容器启动时（含崩溃重启），`docker-entrypoint.sh` 会在 Prisma 迁移之前检测数据库文件是否存在：
 
 - 若 `ops-dashboard.db` 不存在且 `./backup/ops-dashboard-backup.db` 存在 → 自动复制恢复
-- 若无备份文件 → 以全新空库启动（需重新 seed 初始数据）
+- 若无备份文件 → 以全新空库启动
+
+迁移完成后自动运行 seed 脚本，确保管理员用户存在（已有同名用户则跳过）。
 
 ### 环境变量
 
