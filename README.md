@@ -93,8 +93,8 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，查看凭据带 loading 反馈；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；用户名为空而密码有值时同样正常存取；编辑时两字段均留空则不覆盖已存储值
 - ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA
-- ✅ 邮件通知：可配置 SMTP 发送邮件到用户邮箱（未配置时自动跳过）
-- ✅ 系统版本：管理后台侧边栏显示当前 git tag 版本号
+- ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
+- ✅ 关于页面：「关于」页面展示系统版本号（取自 git tag）、技术栈、功能模块等信息
 - ✅ 健康检查：定时 HTTP 探测 + 手动触发，支持按资源关闭（免检默认健康）
 - ✅ 移动端适配：响应式布局
 - ✅ 操作审计：凭据查看/编辑/用户管理/MFA 操作自动记录
@@ -113,7 +113,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `/login` | 登录（支持 MFA） | - |
 | `/admin/resources` | 资源管理 | 是 |
 | `/admin/users` | 用户管理 | 是（仅管理员） |
+| `/admin/smtp` | 邮件设置 (SMTP) | 是（仅管理员） |
 | `/admin/profile` | 个人设置（MFA 绑定等） | 是 |
+| `/admin/about` | 关于系统（版本信息） | 是 |
 
 ## API 接口
 
@@ -128,7 +130,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `POST` | `/api/mfa/verify` | 验证并启用 MFA | 是 |
 | `POST` | `/api/mfa/disable` | 禁用 MFA | 是 |
 | `GET` | `/api/system/version` | 获取系统版本号 | 否 |
+| `GET` | `/api/mail/status` | 获取 SMTP 配置状态 | 是（管理员） |
 | `POST` | `/api/mail/send` | 发送邮件 | 是（管理员） |
+| `POST` | `/api/mail/test` | 发送测试邮件 | 是（管理员） |
 
 ## 数据库备份与恢复
 
@@ -209,4 +213,4 @@ SMTP_FROM=ops@example.com
 
 ## 系统版本
 
-管理后台侧边栏显示当前系统版本号，版本号取自 git tag（由 `.githooks/post-commit` 自动生成并推送）。
+管理后台「关于」页面 (`/admin/about`) 展示当前系统版本号、技术栈和功能模块信息。版本号取自 git tag（由 `.githooks/post-commit` 自动生成并推送）。

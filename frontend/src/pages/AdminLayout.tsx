@@ -1,12 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Layout, Menu, Button, Typography, Tag } from 'antd';
 import {
   DashboardOutlined, AppstoreOutlined, LogoutOutlined,
-  TeamOutlined, UserOutlined,
+  TeamOutlined, UserOutlined, MailOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
-import api from '../api';
 
 const { Header, Content, Sider } = Layout;
 
@@ -14,11 +12,6 @@ export default function AdminLayout() {
   const nav = useNavigate();
   const loc = useLocation();
   const { logout, user } = useAuth();
-  const [version, setVersion] = useState('');
-
-  useEffect(() => {
-    api.get('/system/version').then((res) => setVersion(res.data.version)).catch(() => {});
-  }, []);
 
   const isAdmin = user?.role === 'admin';
 
@@ -27,8 +20,10 @@ export default function AdminLayout() {
     { key: '/admin/resources', icon: <AppstoreOutlined />, label: '资源管理', onClick: () => nav('/admin/resources') },
     ...(isAdmin ? [
       { key: '/admin/users', icon: <TeamOutlined />, label: '用户管理', onClick: () => nav('/admin/users') },
+      { key: '/admin/smtp', icon: <MailOutlined />, label: '邮件设置', onClick: () => nav('/admin/smtp') },
     ] : []),
     { key: '/admin/profile', icon: <UserOutlined />, label: '个人设置', onClick: () => nav('/admin/profile') },
+    { key: '/admin/about', icon: <InfoCircleOutlined />, label: '关于', onClick: () => nav('/admin/about') },
   ];
 
   return (
@@ -36,7 +31,6 @@ export default function AdminLayout() {
       <Sider breakpoint="lg" collapsedWidth={0}>
         <div style={{ color: '#fff', padding: '16px', fontSize: 16, fontWeight: 600, textAlign: 'center' }}>
           Ops Dashboard
-          {version && <Tag color="blue" style={{ marginLeft: 8, fontSize: 11 }}>{version}</Tag>}
         </div>
         <Menu
           theme="dark"
