@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Card, Typography, Descriptions, Tag, Button, Form, Input, Space, message, Alert,
+  Alert, App, Button, Card, Descriptions, Form, Input, Space, Tag, Typography,
 } from 'antd';
 import { MailOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import api from '../api';
@@ -8,6 +8,7 @@ import api from '../api';
 const { Title, Paragraph, Text } = Typography;
 
 export default function SmtpPage() {
+  const { message: messageApi } = App.useApp();
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
@@ -19,7 +20,7 @@ export default function SmtpPage() {
       const res = await api.get('/mail/status');
       setStatus(res.data);
     } catch {
-      message.error('获取 SMTP 状态失败');
+      messageApi.error('获取 SMTP 状态失败');
     }
     setLoading(false);
   };
@@ -32,12 +33,12 @@ export default function SmtpPage() {
     try {
       const res = await api.post('/mail/test', { to: values.testEmail });
       if (res.data.sent) {
-        message.success('测试邮件已发送，请检查收件箱');
+        messageApi.success('测试邮件已发送，请检查收件箱');
       } else {
-        message.error(`发送失败：${res.data.reason}`);
+        messageApi.error(`发送失败：${res.data.reason}`);
       }
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '发送失败');
+      messageApi.error(err?.response?.data?.message || '发送失败');
     }
     setTestLoading(false);
   };

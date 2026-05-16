@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Tag, Typography, Spin, Badge, Button, Space, Modal, message, Tooltip } from 'antd';
+import { App, Badge, Button, Card, Col, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
   ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined,
@@ -13,6 +13,7 @@ import type { ResourceStatus } from '../types';
 const { Title, Text, Paragraph } = Typography;
 
 export default function Dashboard() {
+  const { message: messageApi, modal } = App.useApp();
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function Dashboard() {
       const res = await api.get('/health/status');
       setResources(res.data);
     } catch {
-      message.error('加载状态失败，请检查网络连接');
+      messageApi.error('加载状态失败，请检查网络连接');
     }
     setLoading(false);
   };
@@ -57,7 +58,7 @@ export default function Dashboard() {
       } else {
         // Fallback: open direct link
         window.open(data.targetUrl || r.url, '_blank', 'noopener');
-        if (data.error) message.warning(data.error);
+        if (data.error) messageApi.warning(data.error);
       }
     } catch {
       // API failed, fallback to direct link
@@ -69,7 +70,7 @@ export default function Dashboard() {
   /** Show modal with pre-filled credentials for captcha systems */
   const showSemiAutoModal = (r: ResourceStatus, data: any) => {
     const prefill = data.prefill;
-    Modal.info({
+    modal.info({
       title: `半自动登录: ${r.name}`,
       width: 500,
       content: (

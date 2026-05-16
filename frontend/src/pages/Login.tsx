@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Form, Input, Button, Typography, message } from 'antd';
+import { App, Button, Card, Form, Input, Typography } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
@@ -7,6 +7,7 @@ import { useAuth } from '../auth';
 const { Title } = Typography;
 
 export default function Login() {
+  const { message: messageApi } = App.useApp();
   const { login } = useAuth();
   const nav = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -20,13 +21,13 @@ export default function Login() {
       if (result?.mfaRequired) {
         setMfaRequired(true);
         setCredentials(values);
-        message.info('请输入 MFA 验证码');
+        messageApi.info('请输入 MFA 验证码');
       } else {
-        message.success('登录成功');
+        messageApi.success('登录成功');
         nav('/admin');
       }
     } catch {
-      message.error('用户名或密码错误');
+      messageApi.error('用户名或密码错误');
     }
     setLoading(false);
   };
@@ -37,13 +38,13 @@ export default function Login() {
     try {
       const result = await login(credentials.username, credentials.password, values.mfaCode);
       if (result?.mfaRequired) {
-        message.error('MFA 验证码错误');
+        messageApi.error('MFA 验证码错误');
       } else {
-        message.success('登录成功');
+        messageApi.success('登录成功');
         nav('/admin');
       }
     } catch (err: any) {
-      message.error(err?.response?.data?.message || 'MFA 验证失败');
+      messageApi.error(err?.response?.data?.message || 'MFA 验证失败');
     }
     setLoading(false);
   };

@@ -114,6 +114,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
 - ✅ 关于页面：「关于」页面展示系统版本号（取自 git tag）、技术栈、功能模块等信息
+- ✅ 前端反馈一致性：Dashboard、登录页及后台管理页面统一通过 Ant Design App 上下文渲染消息提示与信息弹窗，避免 React 19 + Ant Design 5 下静态 message / Modal API 出现“点击无反馈”
 - ✅ 健康检查：定时 HTTP 探测 + 手动触发，支持按资源关闭（免检默认健康）
 - ✅ 移动端适配：响应式布局
 - ✅ 操作审计：凭据查看/编辑/用户管理/MFA 操作自动记录

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Card, Button, Typography, message, Input, Space, Tag, Modal, Form, Descriptions,
+  App, Card, Button, Typography, Input, Space, Tag, Modal, Form, Descriptions,
 } from 'antd';
 import { SafetyOutlined, MailOutlined } from '@ant-design/icons';
 import api from '../api';
@@ -8,6 +8,7 @@ import api from '../api';
 const { Title, Text, Paragraph } = Typography;
 
 export default function ProfilePage() {
+  const { message: messageApi } = App.useApp();
   const [profile, setProfile] = useState<any>(null);
   const [mfaSetup, setMfaSetup] = useState<any>(null);
   const [verifyCode, setVerifyCode] = useState('');
@@ -19,7 +20,9 @@ export default function ProfilePage() {
     try {
       const res = await api.get('/auth/me');
       setProfile(res.data);
-    } catch { message.error('获取用户信息失败'); }
+    } catch {
+      messageApi.error('获取用户信息失败');
+    }
   };
 
   useEffect(() => { loadProfile(); }, []);
@@ -30,25 +33,25 @@ export default function ProfilePage() {
       const res = await api.post('/mfa/setup');
       setMfaSetup(res.data);
     } catch (err: any) {
-      message.error(err?.response?.data?.message || 'MFA 设置失败');
+      messageApi.error(err?.response?.data?.message || 'MFA 设置失败');
     }
     setLoading(false);
   };
 
   const handleVerifyMfa = async () => {
     if (!verifyCode || verifyCode.length !== 6) {
-      message.warning('请输入 6 位验证码');
+      messageApi.warning('请输入 6 位验证码');
       return;
     }
     setLoading(true);
     try {
       await api.post('/mfa/verify', { code: verifyCode });
-      message.success('MFA 绑定成功！');
+      messageApi.success('MFA 绑定成功！');
       setMfaSetup(null);
       setVerifyCode('');
       loadProfile();
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '验证码错误');
+      messageApi.error(err?.response?.data?.message || '验证码错误');
     }
     setLoading(false);
   };
@@ -58,12 +61,12 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       await api.post('/mfa/disable', { password: values.password });
-      message.success('MFA 已禁用');
+      messageApi.success('MFA 已禁用');
       setDisableModalOpen(false);
       disableForm.resetFields();
       loadProfile();
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '操作失败');
+      messageApi.error(err?.response?.data?.message || '操作失败');
     }
     setLoading(false);
   };

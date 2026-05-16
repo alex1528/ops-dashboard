@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, Space, message,
+  App, Table, Button, Modal, Form, Input, Select, Space,
   Popconfirm, Tag, Typography, Tooltip, Switch,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
@@ -16,6 +16,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { message: messageApi } = App.useApp();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -27,7 +28,9 @@ export default function UsersPage() {
     try {
       const res = await api.get('/users');
       setUsers(res.data);
-    } catch { message.error('加载用户列表失败'); }
+    } catch {
+      messageApi.error('加载用户列表失败');
+    }
     setLoading(false);
   };
 
@@ -56,32 +59,36 @@ export default function UsersPage() {
     try {
       if (editingId) {
         await api.put(`/users/${editingId}`, values);
-        message.success('用户已更新');
+        messageApi.success('用户已更新');
       } else {
         await api.post('/users', values);
-        message.success('用户已创建');
+        messageApi.success('用户已创建');
       }
       setModalOpen(false);
       load();
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '操作失败');
+      messageApi.error(err?.response?.data?.message || '操作失败');
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/users/${id}`);
-      message.success('用户已删除');
+      messageApi.success('用户已删除');
       load();
-    } catch { message.error('删除失败'); }
+    } catch {
+      messageApi.error('删除失败');
+    }
   };
 
   const handleResetMfa = async (id: string) => {
     try {
       await api.put(`/users/${id}`, { mfaEnabled: false });
-      message.success('MFA 已重置');
+      messageApi.success('MFA 已重置');
       load();
-    } catch { message.error('重置失败'); }
+    } catch {
+      messageApi.error('重置失败');
+    }
   };
 
   const columns = [
@@ -157,7 +164,7 @@ export default function UsersPage() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           {!editingId && (
