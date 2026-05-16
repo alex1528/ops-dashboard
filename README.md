@@ -79,10 +79,11 @@ npm run dev
 
 ### 4. 启用 Git 钩子（自动打 Tag）
 
-克隆仓库后执行一次，激活 `.githooks/post-commit` 自动版本 tag：
+克隆仓库后执行一次，激活 `.githooks/post-commit` 自动版本 tag 并配置 tag 随分支自动推送：
 
 ```bash
 git config core.hooksPath .githooks
+git config push.followTags true
 ```
 
 > **注意**：钩子文件已在仓库中设置为可执行权限（`100755`），无需额外 `chmod`。
