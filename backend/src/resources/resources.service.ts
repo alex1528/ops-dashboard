@@ -112,7 +112,7 @@ export class ResourcesService {
     const { credUsername, credPassword, credExtra, ...resourceData } = dto;
     await this.prisma.resource.update({ where: { id }, data: resourceData });
 
-    if (credUsername !== undefined || credPassword !== undefined) {
+    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);

@@ -89,9 +89,9 @@ export class ProxyService implements OnModuleDestroy {
     // Decrypt credential
     let username: string, password: string, extra: string;
     try {
-      username = this.crypto.decrypt(resource.credential.username);
-      password = this.crypto.decrypt(resource.credential.password);
-      extra = resource.credential.extra ? this.crypto.decrypt(resource.credential.extra) : '';
+      username = this.decryptCred(resource.credential.username);
+      password = this.decryptCred(resource.credential.password);
+      extra = resource.credential.extra ? this.decryptCred(resource.credential.extra) : '';
     } catch (err: any) {
       this.logger.error(`Failed to decrypt credential for ${resource.name}: ${err.message}`);
       return null;
@@ -146,12 +146,27 @@ export class ProxyService implements OnModuleDestroy {
     try {
       return {
         targetUrl: resource.url,
-        username: this.crypto.decrypt(resource.credential.username),
-        password: this.crypto.decrypt(resource.credential.password),
+        username: this.decryptCred(resource.credential.username),
+        password: this.decryptCred(resource.credential.password),
       };
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Decrypt a stored credential value, with backward-compat for legacy plaintext.
+   * Mirrors the same logic in ResourcesService to keep the two services consistent.
+   */
+  private decryptCred(value: string): string {
+    if (!value) return '';
+    const parts = value.split(':');
+    const isEncrypted =
+      parts.length === 3 &&
+      parts[0].length === 24 &&
+      parts[1].length === 32 &&
+      parts.every((p) => p.length > 0 && /^[0-9a-f]+$/i.test(p));
+    return isEncrypted ? this.crypto.decrypt(value) : value;
   }
 
   /**

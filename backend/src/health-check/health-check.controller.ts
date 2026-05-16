@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HealthCheckService } from './health-check.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -45,7 +45,7 @@ export class HealthCheckController {
   @UseGuards(JwtAuthGuard)
   async triggerCheck(@Param('id') id: string) {
     const resource = await this.prisma.resource.findUnique({ where: { id } });
-    if (!resource) return { error: 'Not found' };
+    if (!resource) throw new NotFoundException('Resource not found');
     if (!resource.healthCheckEnabled) return { resourceId: id, status: 'up', skipped: true };
     return this.healthCheck.checkOne(resource.id, resource.url);
   }

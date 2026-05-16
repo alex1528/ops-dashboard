@@ -20,13 +20,16 @@ export class HealthCheckService {
   }
 
   async checkOne(resourceId: string, url: string, timeoutMs = 10000) {
-    const start = Date.now();
     let status = 'unknown';
     let statusCode: number | null = null;
     let error: string | null = null;
+    let responseMs = 0;
 
     // Retry once to reduce false positives from transient network blips
+    // responseMs measures the last attempt's actual HTTP round-trip only,
+    // NOT including the 2-second inter-attempt delay.
     for (let attempt = 0; attempt < 2; attempt++) {
+      const attemptStart = Date.now();
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -39,8 +42,10 @@ export class HealthCheckService {
         statusCode = res.status;
         status = res.ok ? 'up' : 'down';
         error = null;
+        responseMs = Date.now() - attemptStart;
         break; // success — no need to retry
       } catch (err: any) {
+        responseMs = Date.now() - attemptStart;
         status = 'down';
         error = err.message?.substring(0, 500) || 'Unknown error';
         if (attempt === 0) {
@@ -49,8 +54,6 @@ export class HealthCheckService {
         }
       }
     }
-
-    const responseMs = Date.now() - start;
 
     await this.prisma.healthRecord.create({
       data: { resourceId, status, statusCode, responseMs, error },
