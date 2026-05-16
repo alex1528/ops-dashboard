@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, UseGuards, Req, HttpException, HttpStatus,
+  Param, Body, UseGuards, Req, HttpException, HttpStatus, Logger,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResourcesService } from './resources.service';
@@ -10,6 +10,8 @@ import { AuditService } from '../audit/audit.service';
 @Controller('resources')
 @UseGuards(JwtAuthGuard)
 export class ResourcesController {
+  private readonly logger = new Logger(ResourcesController.name);
+
   constructor(
     private resources: ResourcesService,
     private audit: AuditService,
@@ -32,8 +34,12 @@ export class ResourcesController {
       const result = await this.resources.getDecryptedCredential(id);
       return result;
     } catch (err) {
+      this.logger.error(
+        `Failed to read credential for resource ${id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
       throw new HttpException(
-        { message: err instanceof Error ? err.message : '凭据获取失败' },
+        { message: '凭据获取失败，请联系管理员' },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

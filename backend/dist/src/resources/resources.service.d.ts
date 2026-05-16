@@ -15,16 +15,14 @@ export declare class ResourcesService {
         lastHealth: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         };
         healthRecords: undefined;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -33,6 +31,8 @@ export declare class ResourcesService {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     findOne(id: string): Promise<{
         credential: {
@@ -44,15 +44,13 @@ export declare class ResourcesService {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -61,12 +59,17 @@ export declare class ResourcesService {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getDecryptedCredential(resourceId: string): Promise<{
+        exists: boolean;
         username: string;
         password: string;
         extra: string;
-    } | null>;
+    }>;
+    private decryptStoredCredential;
+    private looksEncrypted;
     create(dto: CreateResourceDto): Promise<{
         credential: {
             id: string;
@@ -77,15 +80,13 @@ export declare class ResourcesService {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -94,6 +95,8 @@ export declare class ResourcesService {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateResourceDto): Promise<{
         credential: {
@@ -105,15 +108,13 @@ export declare class ResourcesService {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -122,6 +123,8 @@ export declare class ResourcesService {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: string): Promise<{
         deleted: boolean;

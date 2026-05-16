@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, InputNumber, Switch,
-  Space, message, Popconfirm, Tag, Typography, Tooltip,
+  App, Table, Button, Modal, Form, Input, Select, InputNumber, Switch,
+  Space, Popconfirm, Spin, Tag, Typography, Tooltip,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import api from '../api';
 
 const { Text } = Typography;
+
+interface CredentialDetail {
+  exists: boolean;
+  username: string;
+  password: string;
+  extra: string;
+}
 
 interface Resource {
   id: string;
@@ -24,10 +30,16 @@ interface Resource {
 }
 
 export default function ResourcesPage() {
+  const { message: messageApi } = App.useApp();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [credentialModalOpen, setCredentialModalOpen] = useState(false);
+  const [credentialModalLoading, setCredentialModalLoading] = useState(false);
+  const [credentialModalTitle, setCredentialModalTitle] = useState('查看凭据');
+  const [credentialError, setCredentialError] = useState('');
+  const [credentialData, setCredentialData] = useState<CredentialDetail | null>(null);
   const [form] = Form.useForm();
 
   const load = async () => {
@@ -35,11 +47,23 @@ export default function ResourcesPage() {
     try {
       const res = await api.get('/resources');
       setResources(res.data);
-    } catch { message.error('加载失败'); }
-    setLoading(false);
+    } catch {
+      messageApi.error('加载失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
+
+  const closeCredentialModal = () => {
+    setCredentialModalOpen(false);
+    setCredentialModalLoading(false);
+    setCredentialModalTitle('查看凭据');
+    setCredentialError('');
+    setCredentialData(null);
+    messageApi.destroy();
+  };
 
   const openCreate = () => {
     setEditingId(null);
@@ -81,57 +105,75 @@ export default function ResourcesPage() {
     try {
       if (editingId) {
         await api.put(`/resources/${editingId}`, values);
-        message.success('已更新');
+        messageApi.success('已更新');
       } else {
         await api.post('/resources', values);
-        message.success('已创建');
+        messageApi.success('已创建');
       }
       setModalOpen(false);
       load();
-    } catch { message.error('操作失败'); }
+    } catch {
+      messageApi.error('操作失败');
+    }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/resources/${id}`);
-      message.success('已删除');
+      messageApi.success('已删除');
       load();
-    } catch { message.error('删除失败'); }
+    } catch {
+      messageApi.error('删除失败');
+    }
   };
 
   const handleCheck = async (id: string) => {
     try {
       await api.post(`/health/${id}/check`);
-      message.success('检测完成');
+      messageApi.success('检测完成');
       load();
-    } catch { message.error('检测失败'); }
+    } catch {
+      messageApi.error('检测失败');
+    }
   };
 
-  const viewCredential = async (id: string) => {
-    const hide = message.loading('正在获取凭据…', 0);
+  const viewCredential = async (resource: Resource) => {
+    messageApi.destroy();
+    setCredentialModalTitle(resource.name ? `查看凭据 - ${resource.name}` : '查看凭据');
+    setCredentialModalOpen(true);
+    setCredentialModalLoading(true);
+    setCredentialError('');
+    setCredentialData(null);
     try {
-      const res = await api.get(`/resources/${id}/credential`);
-      hide();
+      const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
       if (!data || data.exists === false) {
-        message.info('未配置凭据');
+        setCredentialData({ exists: false, username: '', password: '', extra: '' });
         return;
       }
-      Modal.info({
-        title: '凭据信息',
-        width: 480,
-        content: (
-          <div style={{ marginTop: 12 }}>
-            <p><strong>用户名：</strong><Text copyable>{data.username || '（空）'}</Text></p>
-            <p><strong>密码：</strong><Text copyable>{data.password || '（空）'}</Text></p>
-            {data.extra && <p><strong>附加：</strong><Text copyable>{data.extra}</Text></p>}
-          </div>
-        ),
+      setCredentialData({
+        exists: true,
+        username: data.username ?? '',
+        password: data.password ?? '',
+        extra: data.extra ?? '',
       });
     } catch (err: any) {
-      hide();
-      message.error(err?.response?.data?.message || '凭据获取失败');
+      setCredentialError(err?.response?.data?.message || '凭据获取失败');
+    } finally {
+      setCredentialModalLoading(false);
     }
+  };
+
+  const renderCredentialValue = (value: string) => {
+    if (!value) {
+      return <Text type="secondary">（空）</Text>;
+    }
+
+    return (
+      <Text copyable={{ text: value }} strong style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+        {value}
+      </Text>
+    );
   };
 
   const columns = [
@@ -185,7 +227,7 @@ export default function ResourcesPage() {
       render: (_: any, r: Resource) => (
         <Space size="small">
           <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
-          <Tooltip title="查看凭据"><Button size="small" icon={<EyeOutlined />} onClick={() => viewCredential(r.id)} /></Tooltip>
+          <Tooltip title="查看凭据"><Button size="small" icon={<EyeOutlined />} onClick={() => viewCredential(r)} /></Tooltip>
           <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => handleCheck(r.id)} /></Tooltip>
           <Popconfirm title="确认删除？" onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
@@ -197,6 +239,7 @@ export default function ResourcesPage() {
 
   return (
     <div>
+      {/* 使用受控弹窗替代静态 Modal.info，避免 React 19 + antd v5 下点击后无可见反馈 */}
       <div className="resources-header">
         <Typography.Title level={4} style={{ margin: 0 }}>资源管理</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增资源</Button>
@@ -217,7 +260,7 @@ export default function ResourcesPage() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true }]}>
@@ -263,6 +306,49 @@ export default function ResourcesPage() {
             <Input.TextArea rows={2} placeholder="留空则不更新" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={credentialModalTitle}
+        open={credentialModalOpen}
+        onCancel={closeCredentialModal}
+        destroyOnHidden
+        footer={[
+          <Button key="close" onClick={closeCredentialModal}>关闭</Button>,
+        ]}
+        width={520}
+      >
+        {credentialModalLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+            <Space direction="vertical" align="center" size="middle">
+              <Spin />
+              <Text type="secondary">正在获取凭据...</Text>
+            </Space>
+          </div>
+        ) : credentialError ? (
+          <Typography.Paragraph type="danger" style={{ marginBottom: 0 }}>
+            {credentialError}
+          </Typography.Paragraph>
+        ) : credentialData?.exists === false ? (
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            当前资源未配置凭据。
+          </Typography.Paragraph>
+        ) : credentialData ? (
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <div>
+              <Text type="secondary">用户名</Text>
+              <div>{renderCredentialValue(credentialData.username)}</div>
+            </div>
+            <div>
+              <Text type="secondary">密码</Text>
+              <div>{renderCredentialValue(credentialData.password)}</div>
+            </div>
+            <div>
+              <Text type="secondary">附加信息</Text>
+              <div>{renderCredentialValue(credentialData.extra)}</div>
+            </div>
+          </Space>
+        ) : null}
       </Modal>
     </div>
   );

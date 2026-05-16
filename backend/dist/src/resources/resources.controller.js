@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ResourcesController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ResourcesController = void 0;
 const common_1 = require("@nestjs/common");
@@ -18,10 +19,11 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const resources_service_1 = require("./resources.service");
 const resources_dto_1 = require("./resources.dto");
 const audit_service_1 = require("../audit/audit.service");
-let ResourcesController = class ResourcesController {
+let ResourcesController = ResourcesController_1 = class ResourcesController {
     constructor(resources, audit) {
         this.resources = resources;
         this.audit = audit;
+        this.logger = new common_1.Logger(ResourcesController_1.name);
     }
     findAll() {
         return this.resources.findAll();
@@ -30,8 +32,15 @@ let ResourcesController = class ResourcesController {
         return this.resources.findOne(id);
     }
     async getCredential(id, req) {
-        await this.audit.log(req.user?.id, 'credential.view', id, '', req.ip);
-        return this.resources.getDecryptedCredential(id);
+        try {
+            await this.audit.log(req.user?.id, 'credential.view', id, '', req.ip);
+            const result = await this.resources.getDecryptedCredential(id);
+            return result;
+        }
+        catch (err) {
+            this.logger.error(`Failed to read credential for resource ${id}`, err instanceof Error ? err.stack : String(err));
+            throw new common_1.HttpException({ message: '凭据获取失败，请联系管理员' }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     async create(dto, req) {
         const result = await this.resources.create(dto);
@@ -95,7 +104,7 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ResourcesController.prototype, "remove", null);
-exports.ResourcesController = ResourcesController = __decorate([
+exports.ResourcesController = ResourcesController = ResourcesController_1 = __decorate([
     (0, common_1.Controller)('resources'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [resources_service_1.ResourcesService,

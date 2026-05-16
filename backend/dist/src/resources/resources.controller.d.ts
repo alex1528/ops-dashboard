@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 export declare class ResourcesController {
     private resources;
     private audit;
+    private readonly logger;
     constructor(resources: ResourcesService, audit: AuditService);
     findAll(): Promise<{
         credential: {
@@ -15,16 +16,14 @@ export declare class ResourcesController {
         lastHealth: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         };
         healthRecords: undefined;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -33,6 +32,8 @@ export declare class ResourcesController {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     findOne(id: string): Promise<{
         credential: {
@@ -44,15 +45,13 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -61,12 +60,15 @@ export declare class ResourcesController {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getCredential(id: string, req: any): Promise<{
+        exists: boolean;
         username: string;
         password: string;
         extra: string;
-    } | null>;
+    }>;
     create(dto: CreateResourceDto, req: any): Promise<{
         credential: {
             id: string;
@@ -77,15 +79,13 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -94,6 +94,8 @@ export declare class ResourcesController {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: string, dto: UpdateResourceDto, req: any): Promise<{
         credential: {
@@ -105,15 +107,13 @@ export declare class ResourcesController {
         healthRecords: {
             error: string | null;
             id: string;
-            status: string;
             checkedAt: Date;
             resourceId: string;
+            status: string;
             statusCode: number | null;
             responseMs: number | null;
         }[];
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         url: string;
         group: string;
@@ -122,6 +122,8 @@ export declare class ResourcesController {
         sortOrder: number;
         enabled: boolean;
         healthCheckEnabled: boolean;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: string, req: any): Promise<{
         deleted: boolean;

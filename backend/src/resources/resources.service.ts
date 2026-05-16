@@ -65,13 +65,27 @@ export class ResourcesService {
     try {
       return {
         exists: true,
-        username: this.crypto.decrypt(cred.username),
-        password: this.crypto.decrypt(cred.password),
-        extra: cred.extra ? this.crypto.decrypt(cred.extra) : '',
+        username: this.decryptStoredCredential(cred.username),
+        password: this.decryptStoredCredential(cred.password),
+        extra: cred.extra ? this.decryptStoredCredential(cred.extra) : '',
       };
     } catch (err) {
       throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  private decryptStoredCredential(value: string) {
+    if (!value) return '';
+    if (!this.looksEncrypted(value)) return value;
+    return this.crypto.decrypt(value);
+  }
+
+  private looksEncrypted(value: string) {
+    const parts = value.split(':');
+    return parts.length === 3
+      && parts[0].length === 24
+      && parts[1].length === 32
+      && parts.every((part) => part.length > 0 && /^[0-9a-f]+$/i.test(part));
   }
 
   async create(dto: CreateResourceDto) {
