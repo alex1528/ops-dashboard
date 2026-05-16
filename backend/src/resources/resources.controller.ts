@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, UseGuards, Req,
+  Param, Body, UseGuards, Req, HttpException, HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResourcesService } from './resources.service';
@@ -27,8 +27,16 @@ export class ResourcesController {
 
   @Get(':id/credential')
   async getCredential(@Param('id') id: string, @Req() req: any) {
-    await this.audit.log(req.user?.id, 'credential.view', id, '', req.ip);
-    return this.resources.getDecryptedCredential(id);
+    try {
+      await this.audit.log(req.user?.id, 'credential.view', id, '', req.ip);
+      const result = await this.resources.getDecryptedCredential(id);
+      return result;
+    } catch (err) {
+      throw new HttpException(
+        { message: err instanceof Error ? err.message : '凭据获取失败' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Post()

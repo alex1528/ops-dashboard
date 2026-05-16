@@ -60,7 +60,7 @@ export default function ResourcesPage() {
     };
     try {
       const { data } = await api.get(`/resources/${r.id}/credential`);
-      if (data) {
+      if (data && data.exists !== false) {
         values.credUsername = data.username ?? '';
         values.credPassword = data.password ?? '';
         values.credExtra = data.extra ?? '';
@@ -112,17 +112,19 @@ export default function ResourcesPage() {
     try {
       const res = await api.get(`/resources/${id}/credential`);
       hide();
-      if (!res.data || (typeof res.data === 'object' && Object.keys(res.data).length === 0)) {
+      const data = res.data;
+      if (!data || data.exists === false) {
         message.info('未配置凭据');
         return;
       }
       Modal.info({
         title: '凭据信息',
+        width: 480,
         content: (
-          <div>
-            <p><strong>用户名：</strong>{res.data.username || '（空）'}</p>
-            <p><strong>密码：</strong>{res.data.password || '（空）'}</p>
-            {res.data.extra && <p><strong>附加：</strong>{res.data.extra}</p>}
+          <div style={{ marginTop: 12 }}>
+            <p><strong>用户名：</strong><Text copyable>{data.username || '（空）'}</Text></p>
+            <p><strong>密码：</strong><Text copyable>{data.password || '（空）'}</Text></p>
+            {data.extra && <p><strong>附加：</strong><Text copyable>{data.extra}</Text></p>}
           </div>
         ),
       });

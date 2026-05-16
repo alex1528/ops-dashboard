@@ -61,12 +61,17 @@ export class ResourcesService {
 
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
-    if (!cred) return null;
-    return {
-      username: this.crypto.decrypt(cred.username),
-      password: this.crypto.decrypt(cred.password),
-      extra: cred.extra ? this.crypto.decrypt(cred.extra) : '',
-    };
+    if (!cred) return { exists: false, username: '', password: '', extra: '' };
+    try {
+      return {
+        exists: true,
+        username: this.crypto.decrypt(cred.username),
+        password: this.crypto.decrypt(cred.password),
+        extra: cred.extra ? this.crypto.decrypt(cred.extra) : '',
+      };
+    } catch (err) {
+      throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   async create(dto: CreateResourceDto) {
