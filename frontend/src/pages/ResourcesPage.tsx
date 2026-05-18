@@ -96,11 +96,11 @@ export default function ResourcesPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    // 编辑模式：用户名和密码均为空时不提交凭据字段（留空则不更新）
-    if (editingId && !values.credUsername && !values.credPassword) {
-      delete values.credUsername;
-      delete values.credPassword;
-      delete values.credExtra;
+    // 编辑模式：每个凭据字段独立判断，留空则不提交、不覆盖已存储值
+    if (editingId) {
+      if (!values.credUsername) delete values.credUsername;
+      if (!values.credPassword) delete values.credPassword;
+      if (!values.credExtra) delete values.credExtra;
     }
     try {
       if (editingId) {

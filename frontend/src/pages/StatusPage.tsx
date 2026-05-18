@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, message } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ResourceStatus } from '../types';
+import { useAuth } from '../auth';
+import api from '../api';
 
 const { Title, Text } = Typography;
 
@@ -10,6 +12,7 @@ export default function StatusPage() {
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<string>('');
+  const { isAuthenticated } = useAuth();
 
   const load = async () => {
     try {
@@ -26,6 +29,31 @@ export default function StatusPage() {
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, []);
+
+  const viewCredential = async (id: string, name: string) => {
+    const hide = message.loading('正在获取凭据…', 0);
+    try {
+      const res = await api.get(`/resources/${id}/credential`);
+      hide();
+      if (!res.data || res.data.exists === false) {
+        message.info('未配置凭据');
+        return;
+      }
+      Modal.info({
+        title: `凭据信息 - ${name}`,
+        content: (
+          <div>
+            <p><strong>用户名：</strong>{res.data.username || '（空）'}</p>
+            <p><strong>密码：</strong>{res.data.password || '（空）'}</p>
+            {res.data.extra && <p><strong>附加信息：</strong>{res.data.extra}</p>}
+          </div>
+        ),
+      });
+    } catch {
+      hide();
+      message.error('凭据获取失败，请确认已登录');
+    }
+  };
 
   const upCount = resources.filter(r => r.lastHealth?.status === 'up').length;
   const downCount = resources.filter(r => r.lastHealth?.status === 'down').length;
@@ -129,6 +157,19 @@ export default function StatusPage() {
                         {r.description}
                       </Text>
                     )}
+                    {isAuthenticated && (
+                      <div style={{ marginTop: 8, textAlign: 'right' }}>
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<EyeOutlined />}
+                          onClick={() => viewCredential(r.id, r.name)}
+                          style={{ fontSize: 12, padding: 0 }}
+                        >
+                          查看凭据
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 </Col>
               ))}
@@ -143,7 +184,7 @@ export default function StatusPage() {
       </Spin>
 
       <div className="status-footer">
-        <Text type="secondary" style={{ fontSize: 12 }}>Ops Dashboard · 只读状态页 · 每 30 秒自动刷新</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>Ops Dashboard · 状态页 · 每 30 秒自动刷新</Text>
       </div>
     </div>
   );

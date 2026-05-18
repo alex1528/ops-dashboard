@@ -84,8 +84,10 @@ export class ResourcesService {
     const parts = value.split(':');
     return parts.length === 3
       && parts[0].length === 24
+      && /^[0-9a-f]+$/i.test(parts[0])
       && parts[1].length === 32
-      && parts.every((part) => part.length > 0 && /^[0-9a-f]+$/i.test(part));
+      && /^[0-9a-f]+$/i.test(parts[1])
+      && (parts[2] === '' || /^[0-9a-f]+$/i.test(parts[2]));
   }
 
   async create(dto: CreateResourceDto) {
