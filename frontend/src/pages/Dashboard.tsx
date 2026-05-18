@@ -105,6 +105,13 @@ export default function Dashboard() {
     return acc;
   }, {});
 
+  // 按 groupSortOrder 排序分组，组内按 sortOrder 排序
+  const sortedGroups = Object.entries(grouped).sort(([, a], [, b]) => {
+    const aOrder = a[0]?.groupSortOrder ?? 0;
+    const bOrder = b[0]?.groupSortOrder ?? 0;
+    return aOrder - bOrder;
+  });
+
   const statusIcon = (s?: string) => {
     if (s === 'up') return <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 24 }} />;
     if (s === 'down') return <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 24 }} />;
@@ -124,7 +131,7 @@ export default function Dashboard() {
       </div>
 
       <Spin spinning={loading}>
-        {Object.entries(grouped).map(([group, items]) => (
+        {sortedGroups.map(([group, items]) => (
           <div key={group} className="dashboard-group">
             <Title level={4} className="dashboard-group-title">
               {group === 'default' ? '未分组' : group}

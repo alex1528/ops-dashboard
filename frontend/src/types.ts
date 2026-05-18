@@ -11,6 +11,8 @@ export interface ResourceStatus {
   name: string;
   url: string;
   group: string;
+  groupSortOrder: number;
+  sortOrder: number;
   loginMode: string;
   description: string;
   healthCheckEnabled: boolean;

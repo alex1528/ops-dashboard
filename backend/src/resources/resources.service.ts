@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
-import { CreateResourceDto, UpdateResourceDto } from './resources.dto';
+import { CreateResourceDto, UpdateResourceDto, ReorderGroupsDto, ReorderResourcesDto, ClearCredentialFieldsDto } from './resources.dto';
 
 @Injectable()
 export class ResourcesService {
@@ -12,7 +12,7 @@ export class ResourcesService {
 
   async findAll() {
     const resources = await this.prisma.resource.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ groupSortOrder: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: {
         credential: true,
         healthRecords: {
@@ -142,5 +142,65 @@ export class ResourcesService {
     if (!existing) throw new NotFoundException();
     await this.prisma.resource.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  /**
+   * 批量更新分组排序：将同一 group 下所有资源的 groupSortOrder 设为指定值
+   */
+  async reorderGroups(dto: ReorderGroupsDto) {
+    const ops = dto.groups.map((g) =>
+      this.prisma.resource.updateMany({
+        where: { group: g.group },
+        data: { groupSortOrder: g.sortOrder },
+      }),
+    );
+    await this.prisma.$transaction(ops);
+    return { success: true };
+  }
+
+  /**
+   * 批量更新资源排序：逐个更新指定资源的 sortOrder
+   */
+  async reorderResources(dto: ReorderResourcesDto) {
+    const ops = dto.items.map((item) =>
+      this.prisma.resource.update({
+        where: { id: item.id },
+        data: { sortOrder: item.sortOrder },
+      }),
+    );
+    await this.prisma.$transaction(ops);
+    return { success: true };
+  }
+
+  /**
+   * 清空指定资源的凭据字段（将对应字段设为加密空字符串）
+   */
+  async clearCredentialFields(resourceId: string, dto: ClearCredentialFieldsDto) {
+    const existing = await this.prisma.resource.findUnique({ where: { id: resourceId } });
+    if (!existing) throw new NotFoundException();
+
+    const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
+    if (!cred) throw new NotFoundException('该资源未配置凭据');
+
+    const emptyEncrypted = this.crypto.encrypt('');
+    const updateData: Record<string, string> = {};
+
+    if (dto.field === 'username' || dto.field === 'all') {
+      updateData.username = emptyEncrypted;
+    }
+    if (dto.field === 'password' || dto.field === 'all') {
+      updateData.password = emptyEncrypted;
+    }
+    if (dto.field === 'extra' || dto.field === 'all') {
+      updateData.extra = emptyEncrypted;
+    }
+
+    await this.prisma.credential.update({
+      where: { resourceId },
+      data: updateData,
+    });
+
+    const clearedFields = dto.field === 'all' ? 'username, password, extra' : dto.field;
+    return { success: true, cleared: clearedFields, resourceName: existing.name };
   }
 }

@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResourcesService } from './resources.service';
-import { CreateResourceDto, UpdateResourceDto } from './resources.dto';
+import { CreateResourceDto, UpdateResourceDto, ReorderGroupsDto, ReorderResourcesDto, ClearCredentialFieldsDto } from './resources.dto';
 import { AuditService } from '../audit/audit.service';
 
 @Controller('resources')
@@ -20,6 +20,20 @@ export class ResourcesController {
   @Get()
   findAll() {
     return this.resources.findAll();
+  }
+
+  @Put('reorder/groups')
+  async reorderGroups(@Body() dto: ReorderGroupsDto, @Req() req: any) {
+    const result = await this.resources.reorderGroups(dto);
+    await this.audit.log(req.user?.id, 'resource.reorder_groups', undefined, '', req.ip);
+    return result;
+  }
+
+  @Put('reorder/items')
+  async reorderItems(@Body() dto: ReorderResourcesDto, @Req() req: any) {
+    const result = await this.resources.reorderResources(dto);
+    await this.audit.log(req.user?.id, 'resource.reorder_items', undefined, '', req.ip);
+    return result;
   }
 
   @Get(':id')
@@ -56,6 +70,13 @@ export class ResourcesController {
   async update(@Param('id') id: string, @Body() dto: UpdateResourceDto, @Req() req: any) {
     const result = await this.resources.update(id, dto);
     await this.audit.log(req.user?.id, 'resource.update', id, '', req.ip);
+    return result;
+  }
+
+  @Post(':id/credential/clear')
+  async clearCredential(@Param('id') id: string, @Body() dto: ClearCredentialFieldsDto, @Req() req: any) {
+    const result = await this.resources.clearCredentialFields(id, dto);
+    await this.audit.log(req.user?.id, 'credential.clear', id, `field=${dto.field}`, req.ip);
     return result;
   }
 

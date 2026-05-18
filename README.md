@@ -109,7 +109,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 
 - ✅ 状态看板：展示所有目标资源的在线状态、响应时间
 - ✅ 只读状态页：`/status` 无需登录的简易监控页面，自动刷新；已登录用户（普通用户及管理员）可在状态页查看目标资源凭据
-- ✅ 资源管理：新增/编辑/删除目标网址及其分组
+- ✅ 资源管理：新增/编辑/删除目标网址及其分组；支持分组和组内资源拖拽排序（基于 @dnd-kit），拖拽结果自动持久化
 - ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，资源管理页"查看凭据"使用页面内受控弹窗展示加载态、空态、错误态和解密后的用户名/密码/附加信息（支持一键复制），避免 React 19 + Ant Design 静态弹窗失效导致"点击无反馈"；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；用户名为空而密码有值时同样正常存取；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储值；正确识别加密空字符串格式避免回显异常；解密失败时返回明确错误提示
 - ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容
@@ -154,6 +154,60 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `GET` | `/api/mail/status` | 获取 SMTP 配置状态 | 是（管理员） |
 | `POST` | `/api/mail/send` | 发送邮件 | 是（管理员） |
 | `POST` | `/api/mail/test` | 发送测试邮件 | 是（管理员） |
+| `PUT` | `/api/resources/reorder/groups` | 批量调整分组显示顺序 | 是 |
+| `PUT` | `/api/resources/reorder/items` | 批量调整组内资源顺序 | 是 |
+| `POST` | `/api/resources/:id/credential/clear` | 清空指定资源的凭据字段 | 是 |
+
+## CLI 工具
+
+### 清空凭据字段
+
+通过命令行 shell 脚本调用系统 API 接口，清空指定目标资源的用户名、密码或附加信息字段。
+脚本默认从项目根目录 `.env` 文件读取 `ADMIN_USERNAME`/`ADMIN_PASSWORD`/`PORT`，无需手动输入凭据（与 `backup-trigger.sh` 行为一致）。
+
+**Linux / macOS (Bash)**：
+
+```bash
+chmod +x clear-credential.sh
+
+# 清空指定资源的密码字段（凭据自动从 .env 读取）
+./clear-credential.sh -r Beszel -f password
+
+# 清空指定资源的所有凭据字段
+./clear-credential.sh -r "聚合DNS" -f all
+
+# 清空附加信息字段
+./clear-credential.sh -r Certd -f extra
+
+# 显式指定凭据和服务地址
+./clear-credential.sh -r Beszel -f password -u admin -p mypass -H http://myhost:6000
+```
+
+**Windows PowerShell**：
+
+```powershell
+# 清空指定资源的密码字段（凭据自动从 .env 读取）
+.\clear-credential.ps1 -r Beszel -f password
+
+# 清空所有凭据字段
+.\clear-credential.ps1 -r "聚合DNS" -f all
+
+# 显式指定凭据
+.\clear-credential.ps1 -r Certd -f extra -u admin -p mypass
+```
+
+参数说明：
+
+| 参数 | 说明 |
+| ---- | ---- |
+| `-r` / `--resource` | 目标资源的名称或 ID |
+| `-f` / `--field` | 要清空的字段：`username` \| `password` \| `extra` \| `all` |
+| `-u` / `--username` | 管理员用户名（可选，默认从 `.env` 读取） |
+| `-p` / `--password` | 管理员密码（可选，默认从 `.env` 读取） |
+| `-H` / `--host` | 服务地址（可选，默认根据 `.env` 中 PORT 计算） |
+
+> 脚本通过登录 API 获取 JWT Token，查找目标资源后调用 `POST /api/resources/:id/credential/clear` 接口完成清空操作。
+> 对应的 API 接口也可直接通过 curl 或其他 HTTP 客户端调用。
 
 ## 数据库备份与恢复
 

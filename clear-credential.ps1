@@ -1,0 +1,137 @@
+<#
+.SYNOPSIS
+  ops-dashboard 凭据字段清空脚本
+
+.DESCRIPTION
+  通过调用系统 API 接口，清空指定目标资源的用户名、密码或附加信息字段。
+  默认从项目根目录 .env 文件读取 ADMIN_USERNAME/ADMIN_PASSWORD/PORT，无需手动输入凭据。
+
+.EXAMPLE
+  .\clear-credential.ps1 -r Beszel -f password
+
+.EXAMPLE
+  .\clear-credential.ps1 -r "聚合DNS" -f all
+
+.EXAMPLE
+  .\clear-credential.ps1 -r Certd -f username -u admin -p mypass -H http://host:6000
+#>
+
+param(
+  [Alias('r')]
+  [Parameter(Mandatory=$true)]
+  [string]$Resource,
+
+  [Alias('f')]
+  [Parameter(Mandatory=$true)]
+  [ValidateSet('username','password','extra','all')]
+  [string]$Field,
+
+  [Alias('H')]
+  [string]$Host_,
+
+  [Alias('u')]
+  [string]$Username,
+
+  [Alias('p')]
+  [string]$Password
+)
+
+$ErrorActionPreference = "Stop"
+
+# ---------- 读取 .env ----------
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$EnvFile = Join-Path $ScriptDir ".env"
+
+function Parse-EnvValue([string]$Key) {
+  if (Test-Path $EnvFile) {
+    $line = Get-Content $EnvFile | Where-Object { $_ -match "^$Key=" } | Select-Object -Last 1
+    if ($line) {
+      $val = ($line -split '=', 2)[1].Trim()
+      return $val.Trim('"').Trim("'")
+    }
+  }
+  return ""
+}
+
+if (-not $Username)  { $Username = Parse-EnvValue "ADMIN_USERNAME" }
+if (-not $Password)  { $Password = Parse-EnvValue "ADMIN_PASSWORD" }
+if (-not $Host_) {
+  $port = Parse-EnvValue "PORT"
+  if ($port) { $Host_ = "http://localhost:$port" } else { $Host_ = "http://localhost:6000" }
+}
+
+# ---------- 参数校验 ----------
+if (-not $Username -or -not $Password) {
+  Write-Error "[ERROR] 未找到凭据。请在 .env 中配置 ADMIN_USERNAME/ADMIN_PASSWORD，或使用 -u / -p 参数。"
+  exit 1
+}
+
+Write-Host "[clear-credential] 服务地址: $Host_"
+Write-Host "[clear-credential] 目标资源: $Resource"
+Write-Host "[clear-credential] 清空字段: $Field"
+
+# ---------- 第一步：登录获取 Token ----------
+Write-Host "[clear-credential] 正在登录..."
+$loginBody = @{ username = $Username; password = $Password } | ConvertTo-Json
+try {
+  $loginResp = Invoke-RestMethod -Uri "$Host_/api/auth/login" -Method POST `
+    -ContentType "application/json" -Body $loginBody
+} catch {
+  Write-Error "[ERROR] 登录失败: $($_.Exception.Message)"
+  exit 1
+}
+
+$token = if ($loginResp.access_token) { $loginResp.access_token } else { "" }
+if (-not $token) {
+  Write-Error "[ERROR] 无法从响应中提取 access_token"
+  exit 1
+}
+Write-Host "[clear-credential] 登录成功，Token 已获取。"
+
+$headers = @{ Authorization = "Bearer $token" }
+
+# ---------- 第二步：获取资源列表并匹配 ----------
+Write-Host "[clear-credential] 正在查找资源..."
+try {
+  $resources = Invoke-RestMethod -Uri "$Host_/api/resources" -Method GET -Headers $headers
+} catch {
+  Write-Error "[ERROR] 获取资源列表失败: $($_.Exception.Message)"
+  exit 1
+}
+
+$found = $null
+foreach ($r in $resources) {
+  if ($r.id -eq $Resource -or $r.name -eq $Resource) {
+    $found = $r
+    break
+  }
+}
+
+if (-not $found) {
+  Write-Error "[ERROR] 未找到资源: $Resource"
+  exit 1
+}
+Write-Host "[clear-credential] 找到资源: $($found.name) ($($found.id))"
+
+# ---------- 第三步：调用清空凭据接口 ----------
+Write-Host "[clear-credential] 正在清空凭据字段..."
+$clearBody = @{ field = $Field } | ConvertTo-Json
+try {
+  $null = Invoke-RestMethod -Uri "$Host_/api/resources/$($found.id)/credential/clear" `
+    -Method POST -ContentType "application/json" -Headers $headers -Body $clearBody
+} catch {
+  $errMsg = $_.Exception.Message
+  if ($_.Exception.Response) {
+    try {
+      $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+      $errMsg = $reader.ReadToEnd()
+      $reader.Close()
+    } catch {}
+  }
+  Write-Error "[ERROR] 清空凭据失败: $errMsg"
+  exit 1
+}
+
+$cleared = if ($Field -eq "all") { "username, password, extra" } else { $Field }
+Write-Host "[clear-credential] ✓ 已清空资源 `"$($found.name)`" 的凭据字段: $cleared" -ForegroundColor Green
+Write-Host "[clear-credential] 完成。"
