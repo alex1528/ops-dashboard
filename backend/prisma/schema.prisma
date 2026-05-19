@@ -40,10 +40,11 @@ model Resource {
 model Credential {
   id         String   @id @default(cuid())
   resourceId String   @unique
-  username   String // encrypted
-  password   String // encrypted
+  username   String // encrypted — Web system login username
+  password   String // encrypted — Web system login password
   extra      String   @default("") // encrypted JSON for additional fields
-  privateKey String   @default("") // encrypted PEM private key
+  privateKey String   @default("") // encrypted PEM private key (Linux SSH)
+  sshEnabled Boolean  @default(false) // whether Web Terminal (SSH) is enabled
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

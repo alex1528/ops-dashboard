@@ -11,10 +11,12 @@ export class CreateResourceDto {
   @IsInt() @IsOptional() groupSortOrder?: number;
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
-  // credential (optional, encrypted before storage)
+  // Web system login credential (encrypted before storage)
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
+  // Linux SSH credential
+  @IsBoolean() @IsOptional() credSshEnabled?: boolean; // enable Web Terminal (SSH)
   @IsString() @IsOptional() credPrivateKey?: string; // PEM private key, no length limit
 }
 
@@ -29,9 +31,12 @@ export class UpdateResourceDto {
   @IsBoolean() @IsOptional() enabled?: boolean;
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
+  // Web system login credential
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
+  // Linux SSH credential
+  @IsBoolean() @IsOptional() credSshEnabled?: boolean; // enable Web Terminal (SSH)
   @IsString() @IsOptional() credPrivateKey?: string; // PEM private key, no length limit
 }
 

@@ -31,6 +31,7 @@ export class ResourcesService {
             hasPassword: !!r.credential.password,
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
+            sshEnabled: r.credential.sshEnabled,
           }
         : null,
       lastHealth: r.healthRecords[0] || null,
@@ -56,6 +57,7 @@ export class ResourcesService {
             hasPassword: !!r.credential.password,
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
+            sshEnabled: r.credential.sshEnabled,
           }
         : null,
     };
@@ -63,7 +65,7 @@ export class ResourcesService {
 
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
-    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '' };
+    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false };
     try {
       return {
         exists: true,
@@ -71,6 +73,7 @@ export class ResourcesService {
         password: this.decryptStoredCredential(cred.password),
         extra: cred.extra ? this.decryptStoredCredential(cred.extra) : '',
         privateKey: cred.privateKey ? this.decryptStoredCredential(cred.privateKey) : '',
+        sshEnabled: cred.sshEnabled,
       };
     } catch (err) {
       throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -94,7 +97,7 @@ export class ResourcesService {
   }
 
   async create(dto: CreateResourceDto) {
-    const { credUsername, credPassword, credExtra, credPrivateKey, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
     const resource = await this.prisma.resource.create({ data: resourceData });
 
     if (credUsername || credPassword || credPrivateKey) {
@@ -105,6 +108,7 @@ export class ResourcesService {
           password: this.crypto.encrypt(credPassword || ''),
           extra: credExtra ? this.crypto.encrypt(credExtra) : '',
           privateKey: credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '',
+          sshEnabled: credSshEnabled ?? false,
         },
       });
     }
@@ -115,15 +119,16 @@ export class ResourcesService {
     const existing = await this.prisma.resource.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
 
-    const { credUsername, credPassword, credExtra, credPrivateKey, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
     await this.prisma.resource.update({ where: { id }, data: resourceData });
 
-    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credPrivateKey !== undefined) {
+    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);
       if (credExtra !== undefined) credData.extra = this.crypto.encrypt(credExtra);
       if (credPrivateKey !== undefined) credData.privateKey = credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '';
+      if (credSshEnabled !== undefined) credData.sshEnabled = credSshEnabled;
 
       const existingCred = await this.prisma.credential.findUnique({ where: { resourceId: id } });
       if (existingCred) {
@@ -136,6 +141,7 @@ export class ResourcesService {
             password: credData.password ?? this.crypto.encrypt(''),
             extra: credData.extra ?? '',
             privateKey: credData.privateKey ?? '',
+            sshEnabled: credSshEnabled ?? false,
           },
         });
       }

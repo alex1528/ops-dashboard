@@ -17,5 +17,6 @@ export interface ResourceStatus {
   description: string;
   healthCheckEnabled: boolean;
   hasPrivateKey?: boolean;
+  sshEnabled?: boolean;
   lastHealth: HealthInfo | null;
 }

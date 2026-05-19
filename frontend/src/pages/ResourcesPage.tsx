@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   App, Button, Modal, Form, Input, Select, InputNumber, Switch,
-  Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload,
+  Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload, Divider,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
@@ -25,6 +25,7 @@ interface CredentialDetail {
   password: string;
   extra: string;
   privateKey: string;
+  sshEnabled: boolean;
 }
 
 interface Resource {
@@ -38,7 +39,7 @@ interface Resource {
   sortOrder: number;
   enabled: boolean;
   healthCheckEnabled: boolean;
-  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean } | null;
+  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
 
@@ -195,6 +196,7 @@ export default function ResourcesPage() {
   const [credentialError, setCredentialError] = useState('');
   const [credentialData, setCredentialData] = useState<CredentialDetail | null>(null);
   const [credentialResourceName, setCredentialResourceName] = useState('');
+  const [sshSwitchEnabled, setSshSwitchEnabled] = useState(false);
   const [form] = Form.useForm();
   const privateKeyFileRef = useRef<HTMLInputElement>(null);
 
@@ -289,13 +291,15 @@ export default function ResourcesPage() {
   const openCreate = () => {
     setEditingId(null);
     form.resetFields();
-    form.setFieldsValue({ group: 'default', loginMode: 'link', sortOrder: 0, enabled: true, healthCheckEnabled: true });
+    setSshSwitchEnabled(false);
+    form.setFieldsValue({ group: 'default', loginMode: 'link', sortOrder: 0, enabled: true, healthCheckEnabled: true, credSshEnabled: false });
     setModalOpen(true);
   };
 
   const openEdit = async (r: Resource) => {
     setEditingId(r.id);
     form.resetFields();
+    setSshSwitchEnabled(false);
     const values: Record<string, any> = {
       name: r.name, url: r.url, group: r.group,
       loginMode: r.loginMode, description: r.description,
@@ -309,6 +313,8 @@ export default function ResourcesPage() {
         values.credPassword = data.password ?? '';
         values.credExtra = data.extra ?? '';
         values.credPrivateKey = data.privateKey ?? '';
+        values.credSshEnabled = data.sshEnabled ?? false;
+        setSshSwitchEnabled(data.sshEnabled ?? false);
       }
     } catch { /* 凭据获取失败时保持空白 */ }
     form.setFieldsValue(values);
@@ -370,7 +376,7 @@ export default function ResourcesPage() {
       const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
       if (!data || data.exists === false) {
-        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '' });
+        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false });
         return;
       }
       setCredentialData({
@@ -379,6 +385,7 @@ export default function ResourcesPage() {
         password: data.password ?? '',
         extra: data.extra ?? '',
         privateKey: data.privateKey ?? '',
+        sshEnabled: data.sshEnabled ?? false,
       });
     } catch (err: any) {
       setCredentialError(err?.response?.data?.message || '凭据获取失败');
@@ -482,7 +489,12 @@ export default function ResourcesPage() {
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
           </Form.Item>
 
-          <Typography.Title level={5}>登录凭据（加密存储）</Typography.Title>
+          <Typography.Title level={5} style={{ marginTop: 16 }}>
+            Web 系统登录凭据（加密存储）
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            用于自动登录目标 Web 系统的账号密码凭据
+          </Typography.Text>
           <Form.Item name="credUsername" label="用户名">
             <Input placeholder="留空则不更新" autoComplete="off" />
           </Form.Item>
@@ -492,47 +504,70 @@ export default function ResourcesPage() {
           <Form.Item name="credExtra" label="附加信息">
             <Input.TextArea rows={2} placeholder="留空则不更新" />
           </Form.Item>
+
+          <Typography.Title level={5} style={{ marginTop: 16 }}>
+            Linux SSH 凭据（Web Terminal）
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            用于通过浏览器内置 Web Terminal 以 SSH 方式登录目标 Linux amd64 服务器
+          </Typography.Text>
           <Form.Item
-            name="credPrivateKey"
-            label="私钥（PEM）"
-            tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
+            name="credSshEnabled"
+            label="启用 Web Terminal (SSH)"
+            valuePropName="checked"
+            tooltip="开启后，已登录用户可在卡片上点击 SSH 按钮直接通过浏览器登录该服务器"
           >
-            <Input.TextArea
-              rows={4}
-              placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
-              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            <Switch
+              checkedChildren="已启用"
+              unCheckedChildren="未启用"
+              onChange={(v) => setSshSwitchEnabled(v)}
             />
           </Form.Item>
-          {/* 隐藏的文件输入，用于上传私钥文件 */}
-          <input
-            ref={privateKeyFileRef}
-            type="file"
-            accept=".pem,.key,.txt"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const content = ev.target?.result as string;
-                form.setFieldValue('credPrivateKey', content);
-                messageApi.success(`已读取文件：${file.name}`);
-              };
-              reader.readAsText(file);
-              e.target.value = ''; // 允许重复选择同一文件
-            }}
-          />
-          <Form.Item label=" " colon={false}>
-            <Button
-              icon={<UploadOutlined />}
-              onClick={() => privateKeyFileRef.current?.click()}
-            >
-              上传私钥文件
-            </Button>
-            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-              支持 .pem / .key / .txt 格式
-            </Text>
-          </Form.Item>
+          {sshSwitchEnabled && (
+            <>
+              <Form.Item
+                name="credPrivateKey"
+                label="私钥（PEM）"
+                tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
+              >
+                <Input.TextArea
+                  rows={4}
+                  placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                />
+              </Form.Item>
+              {/* 隐藏的文件输入，用于上传私钥文件 */}
+              <input
+                ref={privateKeyFileRef}
+                type="file"
+                accept=".pem,.key,.txt"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const content = ev.target?.result as string;
+                    form.setFieldValue('credPrivateKey', content);
+                    messageApi.success(`已读取文件：${file.name}`);
+                  };
+                  reader.readAsText(file);
+                  e.target.value = ''; // 允许重复选择同一文件
+                }}
+              />
+              <Form.Item label=" " colon={false}>
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => privateKeyFileRef.current?.click()}
+                >
+                  上传私钥文件
+                </Button>
+                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                  支持 .pem / .key / .txt 格式
+                </Text>
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Modal>
 
@@ -572,6 +607,9 @@ export default function ResourcesPage() {
           </Typography.Paragraph>
         ) : credentialData ? (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Web 系统登录凭据
+            </Typography.Text>
             <div>
               <Text type="secondary">用户名</Text>
               <div>{renderCredentialValue(credentialData.username)}</div>
@@ -583,6 +621,18 @@ export default function ResourcesPage() {
             <div>
               <Text type="secondary">附加信息</Text>
               <div>{renderCredentialValue(credentialData.extra)}</div>
+            </div>
+            <Divider style={{ margin: '4px 0' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Linux SSH 凭据（Web Terminal）
+            </Typography.Text>
+            <div>
+              <Text type="secondary">Web Terminal (SSH)</Text>
+              <div>
+                {credentialData.sshEnabled
+                  ? <Tag color="green">已启用</Tag>
+                  : <Tag color="default">未启用</Tag>}
+              </div>
             </div>
             {credentialData.privateKey && (
               <div>

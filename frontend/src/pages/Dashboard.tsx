@@ -272,7 +272,7 @@ export default function Dashboard() {
                             />
                           </Tooltip>
                         )}
-                        {isAuthenticated && (
+                        {isAuthenticated && r.sshEnabled && (
                           <Tooltip title="SSH 终端">
                             <Button
                               size="small"

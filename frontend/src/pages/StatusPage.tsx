@@ -205,15 +205,17 @@ export default function StatusPage() {
                             style={{ fontSize: 12, padding: 0 }}
                           />
                         </Tooltip>
-                        <Tooltip title="SSH 终端">
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={<CodeOutlined />}
-                            onClick={() => setSshModal({ open: true, resourceId: r.id, resourceName: r.name, hasPrivateKey: !!r.hasPrivateKey })}
-                            style={{ fontSize: 12, padding: 0 }}
-                          />
-                        </Tooltip>
+                        {r.sshEnabled && (
+                          <Tooltip title="SSH 终端">
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<CodeOutlined />}
+                              onClick={() => setSshModal({ open: true, resourceId: r.id, resourceName: r.name, hasPrivateKey: !!r.hasPrivateKey })}
+                              style={{ fontSize: 12, padding: 0 }}
+                            />
+                          </Tooltip>
+                        )}
                       </div>
                     )}
                   </Card>
