@@ -107,8 +107,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 
 ## 功能
 
-- ✅ 状态看板：展示所有目标资源的在线状态、响应时间；卡片排序严格遵循管理后台拖拽调整后的分组顺序和组内资源顺序（groupSortOrder → sortOrder → createdAt 三级排序）；已登录用户（普通用户及管理员）可在每张卡片上点击「查看凭据」按钮查看该资源的用户名/密码/附加信息（支持一键复制），未登录时按钮不显示
-- ✅ 只读状态页：`/status` 无需登录的简易监控页面，自动刷新；已登录用户（普通用户及管理员）可在状态页查看目标资源凭据；排序规则与状态看板一致
+- ✅ 状态看板：展示所有目标资源的在线状态、响应时间；卡片排序严格遵循管理后台拖拽调整后的分组顺序和组内资源顺序（groupSortOrder → sortOrder → createdAt 三级排序）；已登录用户（普通用户及管理员）可在每张卡片上点击「查看凭据」或「SSH 终端」按钮，未登录时按钮不显示
+- ✅ 只读状态页：`/status` 无需登录的简易监控页面，自动刷新；已登录用户（普通用户及管理员）可在状态页查看目标资源凭据及打开 SSH 终端；排序规则与状态看板一致
+- ✅ WebTerminal SSH：在浏览器内通过 WebSocket 直接 SSH 登录目标 Linux 服务器（xterm.js + ssh2）；有私钥凭据时自动使用私钥登录（`ssh -i key.pem root@host`），无私钥时弹出用户名/密码输入框；终端默认在全屏 Modal 中展示，支持一键新标签页打开独立终端页（`/terminal/:id`）；仅登录用户可见 SSH 按钮，后端 WebSocket 握手验证 JWT，未授权连接自动拒绝
 - ✅ 资源管理：新增/编辑/删除目标网址及其分组；支持分组和组内资源拖拽排序（基于 @dnd-kit），拖拽结果自动持久化
 - ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，支持用户名/密码/附加信息/私钥（PEM）四种凭据类型；私钥支持上传文件（.pem/.key/.txt）或直接粘贴 PEM 内容，查看时支持下载为 .pem 文件；资源管理页“查看凭据”使用页面内受控弹窗展示加载态、空态、错误态和解密后的用户名/密码/附加信息/私钥（支持一键复制），避免 React 19 + Ant Design 静态弹窗失效导致“点击无反馈”；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；用户名为空而密码有値时同样正常存取；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储値；正确识别加密空字符串格式避免回显异常；解密失败时返回明确错误提示
 - ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色
@@ -130,8 +131,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | 路径 | 说明 | 需要登录 |
 | ---- | ---- | -------- |
 | `/` | 完整看板（含一键直达） | 否（查看），是（操作） |
-| `/status` | 状态监控页（查看凭据需登录） | 否（查看状态），是（查看凭据） |
+| `/status` | 状态监控页（查看凭据/SSH 需登录） | 否（查看状态），是（查看凭据/SSH） |
 | `/login` | 登录（支持 MFA） | - |
+| `/terminal/:id` | 独立 SSH 终端页（全屏） | 是 |
 | `/admin/resources` | 资源管理 | 是 |
 | `/admin/users` | 用户管理 | 是（仅管理员） |
 | `/admin/smtp` | 邮件设置 (SMTP) | 是（仅管理员） |
@@ -157,6 +159,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `PUT` | `/api/resources/reorder/groups` | 批量调整分组显示顺序 | 是 |
 | `PUT` | `/api/resources/reorder/items` | 批量调整组内资源顺序 | 是 |
 | `POST` | `/api/resources/:id/credential/clear` | 清空指定资源的凭据字段 | 是 |
+| `WS` | `/ssh` (Socket.IO namespace) | WebTerminal SSH 连接（握手验证 JWT） | 是 |
 
 ## CLI 工具
 
@@ -295,6 +298,39 @@ SMTP_FROM=ops@example.com
 ```
 
 未配置 SMTP 时，邮件功能自动禁用，不影响其他功能正常运行。
+
+## WebTerminal SSH
+
+在浏览器内通过 WebSocket 直接 SSH 登录目标 Linux 服务器，无需安装任何客户端。
+
+### 使用方式
+
+1. 在 Dashboard（`/`）或状态页（`/status`）的资源卡片底部，已登录用户可看到 **`</>`（SSH 终端）** 按钮
+2. 点击按钮后：
+   - **有私钥凭据**：自动使用存储的 PEM 私钥建立 SSH 连接（等效于 `ssh -i key.pem root@host`），无需任何输入
+   - **无私钥凭据**：弹出用户名/密码输入框（用户名默认 `root`），填写后点击「连接」
+3. 终端默认在全屏 Modal 中展示，点击右上角 **⤢** 图标可在新标签页（`/terminal/:id`）独立打开
+
+### 技术实现
+
+- **前端**：`@xterm/xterm` + `@xterm/addon-fit` 渲染终端，`socket.io-client` 建立 WebSocket 连接
+- **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接
+- **认证**：WebSocket 握手时验证 JWT Token（从 `handshake.auth.token` 读取），未登录连接自动拒绝
+- **私钥安全**：私钥在后端解密后直接传给 `ssh2`，不经过前端传输
+- **SSH 主机**：从资源 `url` 字段解析 hostname（如 `https://ga.anytoken.cloud` → `ga.anytoken.cloud`），端口固定 22
+- **SSH 用户名**：固定 `root`（密码模式下用户可自定义）
+
+### WebSocket 事件
+
+| 方向 | 事件 | 数据 | 说明 |
+|------|------|------|------|
+| 客户端 → 服务端 | `ssh:connect` | `{ resourceId, username?, password? }` | 发起 SSH 连接 |
+| 客户端 → 服务端 | `ssh:data` | `{ data: string }` | 键盘输入 |
+| 客户端 → 服务端 | `ssh:resize` | `{ cols, rows }` | 调整终端窗口大小 |
+| 客户端 → 服务端 | `ssh:disconnect` | — | 主动断开 |
+| 服务端 → 客户端 | `ssh:data` | `{ data: string }` | 终端输出 |
+| 服务端 → 客户端 | `ssh:error` | `{ message: string }` | 错误信息 |
+| 服务端 → 客户端 | `ssh:close` | `{ message: string }` | 连接关闭通知 |
 
 ## 系统版本
 
