@@ -21,7 +21,7 @@ export class HealthCheckController {
   async getStatus() {
     const resources = await this.prisma.resource.findMany({
       where: { enabled: true },
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ groupSortOrder: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: {
         healthRecords: { orderBy: { checkedAt: 'desc' }, take: 1 },
       },
@@ -32,6 +32,8 @@ export class HealthCheckController {
       name: r.name,
       url: r.url,
       group: r.group,
+      groupSortOrder: r.groupSortOrder,
+      sortOrder: r.sortOrder,
       loginMode: r.loginMode,
       description: r.description,
       healthCheckEnabled: r.healthCheckEnabled,

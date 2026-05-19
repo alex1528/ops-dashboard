@@ -106,11 +106,16 @@ export default function Dashboard() {
   }, {});
 
   // 按 groupSortOrder 排序分组，组内按 sortOrder 排序
-  const sortedGroups = Object.entries(grouped).sort(([, a], [, b]) => {
-    const aOrder = a[0]?.groupSortOrder ?? 0;
-    const bOrder = b[0]?.groupSortOrder ?? 0;
-    return aOrder - bOrder;
-  });
+  const sortedGroups = Object.entries(grouped)
+    .sort(([, a], [, b]) => {
+      const aOrder = a[0]?.groupSortOrder ?? 0;
+      const bOrder = b[0]?.groupSortOrder ?? 0;
+      return aOrder - bOrder;
+    })
+    .map(([group, items]) => [
+      group,
+      [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    ] as [string, ResourceStatus[]]);
 
   const statusIcon = (s?: string) => {
     if (s === 'up') return <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 24 }} />;

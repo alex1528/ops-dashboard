@@ -64,6 +64,18 @@ export default function StatusPage() {
     return acc;
   }, {});
 
+  // 按 groupSortOrder 排序分组，组内按 sortOrder 排序
+  const sortedGroups = Object.entries(grouped)
+    .sort(([, a], [, b]) => {
+      const aOrder = a[0]?.groupSortOrder ?? 0;
+      const bOrder = b[0]?.groupSortOrder ?? 0;
+      return aOrder - bOrder;
+    })
+    .map(([group, items]) => [
+      group,
+      [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    ] as [string, ResourceStatus[]]);
+
   const statusIcon = (s?: string) => {
     if (s === 'up') return <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />;
     if (s === 'down') return <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />;
@@ -114,7 +126,7 @@ export default function StatusPage() {
       )}
 
       <Spin spinning={loading}>
-        {Object.entries(grouped).map(([group, items]) => (
+        {sortedGroups.map(([group, items]) => (
           <div key={group} className="status-group">
             <Text strong style={{ fontSize: 14, color: '#666', display: 'block', marginBottom: 8 }}>
               {group === 'default' ? '未分组' : group}
