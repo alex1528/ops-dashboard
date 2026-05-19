@@ -1,11 +1,12 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, UseGuards, Req, HttpException, HttpStatus, Logger,
+  Param, Body, UseGuards, Req, HttpException, HttpStatus, Logger, ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResourcesService } from './resources.service';
 import { CreateResourceDto, UpdateResourceDto, ReorderGroupsDto, ReorderResourcesDto, ClearCredentialFieldsDto } from './resources.dto';
 import { AuditService } from '../audit/audit.service';
+import { UsersService } from '../users/users.service';
 
 @Controller('resources')
 @UseGuards(JwtAuthGuard)
@@ -15,6 +16,7 @@ export class ResourcesController {
   constructor(
     private resources: ResourcesService,
     private audit: AuditService,
+    private users: UsersService,
   ) {}
 
   @Get()
@@ -44,10 +46,16 @@ export class ResourcesController {
   @Get(':id/credential')
   async getCredential(@Param('id') id: string, @Req() req: any) {
     try {
+      // Permission check: non-admin users must have explicit access
+      if (req.user?.role !== 'admin') {
+        const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
+        if (!hasAccess) throw new ForbiddenException('无权访问该资源凭据');
+      }
       await this.audit.log(req.user?.id, 'credential.view', id, '', req.ip);
       const result = await this.resources.getDecryptedCredential(id);
       return result;
     } catch (err) {
+      if (err instanceof ForbiddenException) throw err;
       this.logger.error(
         `Failed to read credential for resource ${id}`,
         err instanceof Error ? err.stack : String(err),

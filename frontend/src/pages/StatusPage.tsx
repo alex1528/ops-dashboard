@@ -26,7 +26,7 @@ export default function StatusPage() {
     hasPrivateKey: boolean;
   }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
   const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasResourceAccess, user } = useAuth();
 
   const load = async () => {
     try {
@@ -82,11 +82,14 @@ export default function StatusPage() {
     URL.revokeObjectURL(url);
   };
 
-  const upCount = resources.filter(r => r.lastHealth?.status === 'up').length;
-  const downCount = resources.filter(r => r.lastHealth?.status === 'down').length;
-  const total = resources.length;
+  const visibleResources = resources
+    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group));
 
-  const grouped = resources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
+  const upCount = visibleResources.filter(r => r.lastHealth?.status === 'up').length;
+  const downCount = visibleResources.filter(r => r.lastHealth?.status === 'down').length;
+  const total = visibleResources.length;
+
+  const grouped = visibleResources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
     (acc[r.group] = acc[r.group] || []).push(r);
     return acc;
   }, {});

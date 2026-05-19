@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsIn, IsEmail, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsIn, IsEmail, IsBoolean, MaxLength, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsString() @IsNotEmpty() @MaxLength(50) username!: string;
@@ -12,4 +13,16 @@ export class UpdateUserDto {
   @IsOptional() @IsEmail() email?: string;
   @IsString() @IsOptional() @IsIn(['admin', 'user']) role?: string;
   @IsBoolean() @IsOptional() mfaEnabled?: boolean;
+}
+
+export class PermissionItem {
+  @IsString() @IsIn(['group', 'resource']) type!: string;
+  @IsString() @IsNotEmpty() @MaxLength(200) target!: string;
+}
+
+export class UpdateUserPermissionsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PermissionItem)
+  permissions!: PermissionItem[];
 }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import api from './api';
+import type { UserPermission } from './types';
 
 interface UserInfo {
   id: string;
@@ -12,10 +13,13 @@ interface UserInfo {
 interface AuthCtx {
   token: string | null;
   user: UserInfo | null;
+  permissions: UserPermission[];
   login: (username: string, password: string, mfaCode?: string) => Promise<any>;
   logout: () => void;
   isAuthenticated: boolean;
   isInitializing: boolean;
+  /** Check if current user can access a resource (by id and group) */
+  hasResourceAccess: (resourceId: string, group: string) => boolean;
 }
 
 const AuthContext = createContext<AuthCtx>(null!);
@@ -23,6 +27,7 @@ const AuthContext = createContext<AuthCtx>(null!);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Verify stored token is still valid on app startup
@@ -32,8 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsInitializing(false);
       return;
     }
-    api.get('/auth/me')
-      .then((res) => setUser(res.data))
+    Promise.all([
+      api.get('/auth/me'),
+      api.get('/auth/me/permissions'),
+    ])
+      .then(([meRes, permRes]) => {
+        setUser(meRes.data);
+        if (permRes.data.role !== 'admin') {
+          setPermissions(permRes.data.permissions || []);
+        } else {
+          setPermissions([]); // admin has full access, no filtering
+        }
+      })
       .catch(() => {
         localStorage.removeItem('token');
         setToken(null);
@@ -49,6 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('token', t);
     setToken(t);
     setUser(res.data.user);
+    // Fetch permissions after login
+    try {
+      const permRes = await api.get('/auth/me/permissions');
+      if (permRes.data.role !== 'admin') {
+        setPermissions(permRes.data.permissions || []);
+      } else {
+        setPermissions([]);
+      }
+    } catch { /* ignore */ }
     return res.data;
   }, []);
 
@@ -56,10 +80,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setPermissions([]);
   }, []);
 
+  const hasResourceAccess = useCallback((resourceId: string, group: string): boolean => {
+    // Not logged in: no access
+    if (!user) return false;
+    // Admin: always full access
+    if (user.role === 'admin') return true;
+    // User with no permissions configured: no access (must be explicitly authorized)
+    if (permissions.length === 0) return false;
+    // Check direct resource permission
+    if (permissions.some((p) => p.type === 'resource' && p.target === resourceId)) return true;
+    // Check group permission
+    if (permissions.some((p) => p.type === 'group' && p.target === group)) return true;
+    return false;
+  }, [user, permissions]);
+
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, isAuthenticated: !!token, isInitializing }}>
+    <AuthContext.Provider value={{ token, user, permissions, login, logout, isAuthenticated: !!token, isInitializing, hasResourceAccess }}>
       {children}
     </AuthContext.Provider>
   );

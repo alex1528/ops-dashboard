@@ -327,12 +327,18 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
-.status-cred-download {
-  margin-top: 6px;
-}
 @media (max-width: 576px) {
   .status-header { padding: 16px; }
   .status-summary { gap: 10px; }
+}
+
+/* ===== UsersPage Permission Modal ===== */
+.perm-loading {
+  text-align: center;
+  padding: 24px;
+}
+.perm-hint {
+  margin-bottom: 12px;
 }
 
 /* ===== Utility / Shared ===== */

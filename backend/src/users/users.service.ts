@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto, UpdateUserDto } from './users.dto';
+import { CreateUserDto, UpdateUserDto, UpdateUserPermissionsDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -79,5 +79,57 @@ export class UsersService {
     }
     await this.prisma.adminUser.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  /** Get permissions for a user */
+  async getPermissions(userId: string) {
+    const user = await this.prisma.adminUser.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+    const permissions = await this.prisma.userPermission.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return permissions.map((p) => ({ id: p.id, type: p.type, target: p.target }));
+  }
+
+  /** Replace all permissions for a user */
+  async updatePermissions(userId: string, dto: UpdateUserPermissionsDto) {
+    const user = await this.prisma.adminUser.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+    // Delete existing permissions and recreate
+    await this.prisma.userPermission.deleteMany({ where: { userId } });
+    if (dto.permissions.length > 0) {
+      await this.prisma.userPermission.createMany({
+        data: dto.permissions.map((p) => ({
+          userId,
+          type: p.type,
+          target: p.target,
+        })),
+      });
+    }
+    return this.getPermissions(userId);
+  }
+
+  /** Check if a user has access to a specific resource */
+  async hasResourceAccess(userId: string, resourceId: string): Promise<boolean> {
+    const user = await this.prisma.adminUser.findUnique({ where: { id: userId } });
+    if (!user) return false;
+    // Admin always has full access
+    if (user.role === 'admin') return true;
+    // Check direct resource permission
+    const directPerm = await this.prisma.userPermission.findFirst({
+      where: { userId, type: 'resource', target: resourceId },
+    });
+    if (directPerm) return true;
+    // Check group permission — need to know which group this resource belongs to
+    const resource = await this.prisma.resource.findUnique({
+      where: { id: resourceId },
+      select: { group: true },
+    });
+    if (!resource) return false;
+    const groupPerm = await this.prisma.userPermission.findFirst({
+      where: { userId, type: 'group', target: resource.group },
+    });
+    return !!groupPerm;
   }
 }

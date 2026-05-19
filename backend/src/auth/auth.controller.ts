@@ -38,4 +38,19 @@ export class AuthController {
       mfaEnabled: user.mfaEnabled,
     };
   }
+
+  /** Return current user's resource permissions */
+  @Get('me/permissions')
+  @UseGuards(JwtAuthGuard)
+  async mePermissions(@Req() req: Request) {
+    const u = (req as any).user;
+    const user = await this.prisma.adminUser.findUnique({ where: { id: u.id } });
+    if (!user) return { role: 'user', permissions: [] };
+    if (user.role === 'admin') return { role: 'admin', permissions: [] };
+    const permissions = await this.prisma.userPermission.findMany({
+      where: { userId: user.id },
+      select: { type: true, target: true },
+    });
+    return { role: user.role, permissions };
+  }
 }

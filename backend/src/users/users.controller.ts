@@ -5,7 +5,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './users.dto';
+import { CreateUserDto, UpdateUserDto, UpdateUserPermissionsDto } from './users.dto';
 import { AuditService } from '../audit/audit.service';
 
 @Controller('users')
@@ -45,5 +45,17 @@ export class UsersController {
   async remove(@Param('id') id: string, @Req() req: any) {
     await this.audit.log(req.user?.id, 'user.delete', id, '', req.ip);
     return this.users.remove(id);
+  }
+
+  @Get(':id/permissions')
+  getPermissions(@Param('id') id: string) {
+    return this.users.getPermissions(id);
+  }
+
+  @Put(':id/permissions')
+  async updatePermissions(@Param('id') id: string, @Body() dto: UpdateUserPermissionsDto, @Req() req: any) {
+    const result = await this.users.updatePermissions(id, dto);
+    await this.audit.log(req.user?.id, 'user.update_permissions', id, '', req.ip);
+    return result;
   }
 }

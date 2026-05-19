@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   App, Table, Button, Modal, Form, Input, Select, Space,
-  Popconfirm, Tag, Typography, Tooltip, Switch,
+  Popconfirm, Tag, Typography, Tooltip, Tree,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
 import api from '../api';
 
 interface User {
@@ -15,6 +15,17 @@ interface User {
   createdAt: string;
 }
 
+interface ResourceItem {
+  id: string;
+  name: string;
+  group: string;
+}
+
+interface PermissionItem {
+  type: 'group' | 'resource';
+  target: string;
+}
+
 export default function UsersPage() {
   const { message: messageApi } = App.useApp();
   const [users, setUsers] = useState<User[]>([]);
@@ -22,6 +33,14 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form] = Form.useForm();
+
+  // Permission modal state
+  const [permModalOpen, setPermModalOpen] = useState(false);
+  const [permUserId, setPermUserId] = useState<string | null>(null);
+  const [permUserName, setPermUserName] = useState('');
+  const [permLoading, setPermLoading] = useState(false);
+  const [permResources, setPermResources] = useState<ResourceItem[]>([]);
+  const [permCheckedKeys, setPermCheckedKeys] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -91,6 +110,82 @@ export default function UsersPage() {
     }
   };
 
+  /** Open permission config modal for a user */
+  const openPermModal = async (u: User) => {
+    setPermUserId(u.id);
+    setPermUserName(u.username);
+    setPermModalOpen(true);
+    setPermLoading(true);
+    try {
+      const [resRes, permRes] = await Promise.all([
+        api.get('/resources'),
+        api.get(`/users/${u.id}/permissions`),
+      ]);
+      const allResources: ResourceItem[] = (resRes.data || []).map((r: any) => ({
+        id: r.id, name: r.name, group: r.group,
+      }));
+      setPermResources(allResources);
+      // Convert permissions to checked keys
+      const perms: PermissionItem[] = permRes.data || [];
+      const keys: string[] = [];
+      for (const p of perms) {
+        if (p.type === 'group') keys.push(`group:${p.target}`);
+        else keys.push(`resource:${p.target}`);
+      }
+      setPermCheckedKeys(keys);
+    } catch {
+      messageApi.error('加载权限信息失败');
+    }
+    setPermLoading(false);
+  };
+
+  /** Save permissions */
+  const handleSavePermissions = async () => {
+    if (!permUserId) return;
+    // Convert checked keys back to permission items
+    const permissions: PermissionItem[] = [];
+    const checkedGroups = new Set<string>();
+    for (const key of permCheckedKeys) {
+      if (key.startsWith('group:')) {
+        const group = key.slice(6);
+        permissions.push({ type: 'group', target: group });
+        checkedGroups.add(group);
+      }
+    }
+    for (const key of permCheckedKeys) {
+      if (key.startsWith('resource:')) {
+        const resourceId = key.slice(9);
+        // Skip individual resource if its group is already fully checked
+        const resource = permResources.find((r) => r.id === resourceId);
+        if (resource && checkedGroups.has(resource.group)) continue;
+        permissions.push({ type: 'resource', target: resourceId });
+      }
+    }
+    try {
+      await api.put(`/users/${permUserId}/permissions`, { permissions });
+      messageApi.success('权限已更新');
+      setPermModalOpen(false);
+    } catch {
+      messageApi.error('权限保存失败');
+    }
+  };
+
+  /** Build tree data from resources grouped by group */
+  const buildPermTreeData = () => {
+    const groupMap: Record<string, ResourceItem[]> = {};
+    for (const r of permResources) {
+      (groupMap[r.group] = groupMap[r.group] || []).push(r);
+    }
+    return Object.entries(groupMap).map(([group, items]) => ({
+      title: `${group}（分组）`,
+      key: `group:${group}`,
+      children: items.map((r) => ({
+        title: r.name,
+        key: `resource:${r.id}`,
+      })),
+    }));
+  };
+
   const columns = [
     {
       title: '用户名', dataIndex: 'username', key: 'username',
@@ -117,12 +212,15 @@ export default function UsersPage() {
       render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
     {
-      title: '操作', key: 'actions', width: 200,
+      title: '操作', key: 'actions', width: 240,
       render: (_: any, r: User) => {
         const isLastAdmin = r.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1;
         return (
           <Space size="small">
             <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+            {r.role === 'user' && (
+              <Tooltip title="权限"><Button size="small" icon={<SafetyOutlined />} onClick={() => openPermModal(r)} /></Tooltip>
+            )}
             {r.mfaEnabled && (
               <Popconfirm title="确认重置此用户的 MFA？" onConfirm={() => handleResetMfa(r.id)}>
                 <Tooltip title="重置 MFA"><Button size="small" icon={<LockOutlined />} /></Tooltip>
@@ -192,6 +290,36 @@ export default function UsersPage() {
             ]} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Permission config modal */}
+      <Modal
+        title={`资源权限 — ${permUserName}`}
+        open={permModalOpen}
+        onOk={handleSavePermissions}
+        onCancel={() => setPermModalOpen(false)}
+        width={520}
+        destroyOnHidden
+        confirmLoading={permLoading}
+      >
+        {permLoading ? (
+          <div className="perm-loading">加载中...</div>
+        ) : permResources.length === 0 ? (
+          <Typography.Text type="secondary">暂无可分配的资源</Typography.Text>
+        ) : (
+          <>
+            <Typography.Paragraph type="secondary" className="perm-hint">
+              勾选分组将授权该组下全部资源，也可展开分组单独授权某个资源。未勾选任何资源时该用户无法查看任何目标。
+            </Typography.Paragraph>
+            <Tree
+              checkable
+              defaultExpandAll
+              checkedKeys={permCheckedKeys}
+              onCheck={(checked) => setPermCheckedKeys(checked as string[])}
+              treeData={buildPermTreeData()}
+            />
+          </>
+        )}
       </Modal>
     </div>
   );

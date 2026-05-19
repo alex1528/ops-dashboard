@@ -4,7 +4,7 @@ import {
   Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload, Divider,
 } from 'antd';
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
+  PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined,
   ThunderboltOutlined, HolderOutlined, UploadOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import {
@@ -208,6 +208,7 @@ export default function ResourcesPage() {
   const [credentialError, setCredentialError] = useState('');
   const [credentialData, setCredentialData] = useState<CredentialDetail | null>(null);
   const [credentialResourceName, setCredentialResourceName] = useState('');
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [sshSwitchEnabled, setSshSwitchEnabled] = useState(false);
   const [webLoginSwitchEnabled, setWebLoginSwitchEnabled] = useState(false);
   const [form] = Form.useForm();
@@ -389,6 +390,7 @@ export default function ResourcesPage() {
     setCredentialModalLoading(true);
     setCredentialError('');
     setCredentialData(null);
+    setShowPrivateKey(false);
     try {
       const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
@@ -670,23 +672,26 @@ export default function ResourcesPage() {
             </div>
             {credentialData.privateKey && (
               <div>
-                <Text type="secondary">私钥（PEM）</Text>
-                <div>
+                <div className="dash-cred-key-header">
+                  <Text type="secondary">私钥（PEM）</Text>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={showPrivateKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                    onClick={() => setShowPrivateKey((v) => !v)}
+                    className="dash-cred-key-toggle"
+                  >
+                    {showPrivateKey ? '隐藏' : '显示'}
+                  </Button>
+                </div>
+                {showPrivateKey && (
                   <Input.TextArea
                     value={credentialData.privateKey}
                     readOnly
                     rows={6}
-                    style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
+                    className="dash-cred-privatekey"
                   />
-                  <Button
-                    size="small"
-                    icon={<DownloadOutlined />}
-                    style={{ marginTop: 6 }}
-                    onClick={() => downloadPrivateKey(credentialData.privateKey, credentialResourceName)}
-                  >
-                    下载 .pem 文件
-                  </Button>
-                </div>
+                )}
               </div>
             )}
           </Space>

@@ -34,7 +34,7 @@ export default function Dashboard() {
   }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const nav = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasResourceAccess, user } = useAuth();
 
   const load = async () => {
     setLoading(true);
@@ -134,10 +134,12 @@ export default function Dashboard() {
     });
   };
 
-  const grouped = resources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
-    (acc[r.group] = acc[r.group] || []).push(r);
-    return acc;
-  }, {});
+  const grouped = resources
+    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group))
+    .reduce<Record<string, ResourceStatus[]>>((acc, r) => {
+      (acc[r.group] = acc[r.group] || []).push(r);
+      return acc;
+    }, {});
 
   // 按 groupSortOrder 排序分组，组内按 sortOrder 排序
   const sortedGroups = Object.entries(grouped)

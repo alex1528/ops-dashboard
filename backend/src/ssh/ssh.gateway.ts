@@ -14,6 +14,7 @@ import { SshService } from './ssh.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { AuditService } from '../audit/audit.service';
+import { UsersService } from '../users/users.service';
 
 @WebSocketGateway({
   namespace: '/ssh',
@@ -32,6 +33,7 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly crypto: CryptoService,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
+    private readonly users: UsersService,
   ) {}
 
   /** Verify JWT on WebSocket handshake */
@@ -89,6 +91,15 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!resource) {
       client.emit('ssh:error', { message: '资源不存在' });
       return;
+    }
+
+    // Permission check: non-admin users must have explicit access
+    if (user.role !== 'admin') {
+      const hasAccess = await this.users.hasResourceAccess(user.id, resourceId);
+      if (!hasAccess) {
+        client.emit('ssh:error', { message: '无权访问该资源' });
+        return;
+      }
     }
 
     // Parse SSH host from resource URL

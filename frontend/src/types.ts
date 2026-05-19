@@ -20,3 +20,8 @@ export interface ResourceStatus {
   webLoginEnabled?: boolean;
   lastHealth: HealthInfo | null;
 }
+
+export interface UserPermission {
+  type: 'group' | 'resource';
+  target: string;
+}
