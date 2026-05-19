@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { App, Badge, Button, Card, Col, Modal, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
+import { App, Badge, Button, Card, Col, Input, Modal, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
-  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined,
+  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -13,11 +13,17 @@ import type { ResourceStatus } from '../types';
 const { Title, Text, Paragraph } = Typography;
 
 export default function Dashboard() {
-  const { message: messageApi, modal } = App.useApp();
+  const { message: messageApi } = App.useApp();
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState<string | null>(null);
   const [credLoading, setCredLoading] = useState<string | null>(null);
+  const [credModal, setCredModal] = useState<{
+    open: boolean;
+    title: string;
+    resourceName: string;
+    data: { username: string; password: string; extra: string; privateKey: string } | null;
+  }>({ open: false, title: '', resourceName: '', data: null });
   const nav = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -71,7 +77,7 @@ export default function Dashboard() {
   /** Show modal with pre-filled credentials for captcha systems */
   const showSemiAutoModal = (r: ResourceStatus, data: any) => {
     const prefill = data.prefill;
-    modal.info({
+    Modal.info({
       title: `半自动登录: ${r.name}`,
       width: 500,
       content: (
@@ -103,7 +109,7 @@ export default function Dashboard() {
 
   /** View credential for a resource (requires login) */
   const handleViewCredential = async (e: React.MouseEvent, r: ResourceStatus) => {
-    e.stopPropagation(); // 阻止冒泡，避免触发卡片点击（一键直达）
+    e.stopPropagation();
     setCredLoading(r.id);
     try {
       const res = await api.get(`/resources/${r.id}/credential`);
@@ -112,32 +118,16 @@ export default function Dashboard() {
         messageApi.info('该资源未配置凭据');
         return;
       }
-      modal.info({
+      setCredModal({
+        open: true,
         title: `凭据信息 — ${r.name}`,
-        width: 480,
-        content: (
-          <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
-            <div>
-              <Text type="secondary">用户名：</Text>
-              {data.username
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{data.username}</Text>
-                : <Text type="secondary">（空）</Text>}
-            </div>
-            <div>
-              <Text type="secondary">密码：</Text>
-              {data.password
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{data.password}</Text>
-                : <Text type="secondary">（空）</Text>}
-            </div>
-            {data.extra && (
-              <div>
-                <Text type="secondary">附加信息：</Text>
-                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.extra}</Text>
-              </div>
-            )}
-          </Space>
-        ),
-        okText: '关闭',
+        resourceName: r.name,
+        data: {
+          username: data.username ?? '',
+          password: data.password ?? '',
+          extra: data.extra ?? '',
+          privateKey: data.privateKey ?? '',
+        },
       });
     } catch (err: any) {
       const msg = err?.response?.data?.message || '凭据获取失败，请确认已登录';
@@ -145,6 +135,18 @@ export default function Dashboard() {
     } finally {
       setCredLoading(null);
     }
+  };
+
+  /** 下载私钥为 .pem 文件 */
+  const downloadPrivateKey = (content: string, resourceName: string) => {
+    const blob = new Blob([content], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = resourceName.replace(/[^\w\u4e00-\u9fa5-]/g, '_');
+    a.download = `${safeName}_private_key.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const grouped = resources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
@@ -271,6 +273,69 @@ export default function Dashboard() {
           </div>
         )}
       </Spin>
+
+      {/* 凭据查看弹窗（受控，支持私钥下载） */}
+      <Modal
+        title={credModal.title}
+        open={credModal.open}
+        onCancel={() => setCredModal((s) => ({ ...s, open: false }))}
+        destroyOnClose
+        footer={[
+          credModal.data?.privateKey ? (
+            <Button
+              key="download"
+              icon={<DownloadOutlined />}
+              onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
+            >
+              下载私钥 (.pem)
+            </Button>
+          ) : null,
+          <Button key="close" onClick={() => setCredModal((s) => ({ ...s, open: false }))}>关闭</Button>,
+        ]}
+        width={520}
+      >
+        {credModal.data && (
+          <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 8 }}>
+            <div>
+              <Text type="secondary">用户名：</Text>
+              {credModal.data.username
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.username}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            <div>
+              <Text type="secondary">密码：</Text>
+              {credModal.data.password
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.password}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            {credModal.data.extra && (
+              <div>
+                <Text type="secondary">附加信息：</Text>
+                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{credModal.data.extra}</Text>
+              </div>
+            )}
+            {credModal.data.privateKey && (
+              <div>
+                <Text type="secondary">私钥（PEM）：</Text>
+                <Input.TextArea
+                  value={credModal.data.privateKey}
+                  readOnly
+                  rows={6}
+                  style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
+                />
+                <Button
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  style={{ marginTop: 6 }}
+                  onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
+                >
+                  下载 .pem 文件
+                </Button>
+              </div>
+            )}
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -30,6 +30,7 @@ export class ResourcesService {
             username: '••••••',
             hasPassword: !!r.credential.password,
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
+            hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
           }
         : null,
       lastHealth: r.healthRecords[0] || null,
@@ -54,6 +55,7 @@ export class ResourcesService {
             username: '••••••',
             hasPassword: !!r.credential.password,
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
+            hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
           }
         : null,
     };
@@ -61,13 +63,14 @@ export class ResourcesService {
 
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
-    if (!cred) return { exists: false, username: '', password: '', extra: '' };
+    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '' };
     try {
       return {
         exists: true,
         username: this.decryptStoredCredential(cred.username),
         password: this.decryptStoredCredential(cred.password),
         extra: cred.extra ? this.decryptStoredCredential(cred.extra) : '',
+        privateKey: cred.privateKey ? this.decryptStoredCredential(cred.privateKey) : '',
       };
     } catch (err) {
       throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -91,16 +94,17 @@ export class ResourcesService {
   }
 
   async create(dto: CreateResourceDto) {
-    const { credUsername, credPassword, credExtra, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, ...resourceData } = dto;
     const resource = await this.prisma.resource.create({ data: resourceData });
 
-    if (credUsername || credPassword) {
+    if (credUsername || credPassword || credPrivateKey) {
       await this.prisma.credential.create({
         data: {
           resourceId: resource.id,
           username: this.crypto.encrypt(credUsername || ''),
           password: this.crypto.encrypt(credPassword || ''),
           extra: credExtra ? this.crypto.encrypt(credExtra) : '',
+          privateKey: credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '',
         },
       });
     }
@@ -111,25 +115,27 @@ export class ResourcesService {
     const existing = await this.prisma.resource.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
 
-    const { credUsername, credPassword, credExtra, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, ...resourceData } = dto;
     await this.prisma.resource.update({ where: { id }, data: resourceData });
 
-    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined) {
+    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credPrivateKey !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);
       if (credExtra !== undefined) credData.extra = this.crypto.encrypt(credExtra);
+      if (credPrivateKey !== undefined) credData.privateKey = credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '';
 
       const existingCred = await this.prisma.credential.findUnique({ where: { resourceId: id } });
       if (existingCred) {
         await this.prisma.credential.update({ where: { resourceId: id }, data: credData });
-      } else if (credUsername || credPassword) {
+      } else if (credUsername || credPassword || credPrivateKey) {
         await this.prisma.credential.create({
           data: {
             resourceId: id,
             username: credData.username ?? this.crypto.encrypt(''),
             password: credData.password ?? this.crypto.encrypt(''),
             extra: credData.extra ?? '',
+            privateKey: credData.privateKey ?? '',
           },
         });
       }
@@ -194,13 +200,16 @@ export class ResourcesService {
     if (dto.field === 'extra' || dto.field === 'all') {
       updateData.extra = emptyEncrypted;
     }
+    if (dto.field === 'privateKey' || dto.field === 'all') {
+      updateData.privateKey = '';
+    }
 
     await this.prisma.credential.update({
       where: { resourceId },
       data: updateData,
     });
 
-    const clearedFields = dto.field === 'all' ? 'username, password, extra' : dto.field;
+    const clearedFields = dto.field === 'all' ? 'username, password, extra, privateKey' : dto.field;
     return { success: true, cleared: clearedFields, resourceName: existing.name };
   }
 }

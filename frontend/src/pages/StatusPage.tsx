@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, message } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, Input, Space, message } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ResourceStatus } from '../types';
 import { useAuth } from '../auth';
@@ -12,6 +12,12 @@ export default function StatusPage() {
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<string>('');
+  const [credModal, setCredModal] = useState<{
+    open: boolean;
+    title: string;
+    resourceName: string;
+    data: { username: string; password: string; extra: string; privateKey: string } | null;
+  }>({ open: false, title: '', resourceName: '', data: null });
   const { isAuthenticated } = useAuth();
 
   const load = async () => {
@@ -39,20 +45,32 @@ export default function StatusPage() {
         message.info('未配置凭据');
         return;
       }
-      Modal.info({
+      setCredModal({
+        open: true,
         title: `凭据信息 - ${name}`,
-        content: (
-          <div>
-            <p><strong>用户名：</strong>{res.data.username || '（空）'}</p>
-            <p><strong>密码：</strong>{res.data.password || '（空）'}</p>
-            {res.data.extra && <p><strong>附加信息：</strong>{res.data.extra}</p>}
-          </div>
-        ),
+        resourceName: name,
+        data: {
+          username: res.data.username ?? '',
+          password: res.data.password ?? '',
+          extra: res.data.extra ?? '',
+          privateKey: res.data.privateKey ?? '',
+        },
       });
     } catch {
       hide();
       message.error('凭据获取失败，请确认已登录');
     }
+  };
+
+  const downloadPrivateKey = (content: string, resourceName: string) => {
+    const blob = new Blob([content], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = resourceName.replace(/[^\w\u4e00-\u9fa5-]/g, '_');
+    a.download = `${safeName}_private_key.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const upCount = resources.filter(r => r.lastHealth?.status === 'up').length;
@@ -198,6 +216,69 @@ export default function StatusPage() {
       <div className="status-footer">
         <Text type="secondary" style={{ fontSize: 12 }}>Ops Dashboard · 状态页 · 每 30 秒自动刷新</Text>
       </div>
+
+      {/* 凭据查看弹窗（受控，支持私钥下载） */}
+      <Modal
+        title={credModal.title}
+        open={credModal.open}
+        onCancel={() => setCredModal((s) => ({ ...s, open: false }))}
+        destroyOnClose
+        footer={[
+          credModal.data?.privateKey ? (
+            <Button
+              key="download"
+              icon={<DownloadOutlined />}
+              onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
+            >
+              下载私钥 (.pem)
+            </Button>
+          ) : null,
+          <Button key="close" onClick={() => setCredModal((s) => ({ ...s, open: false }))}>关闭</Button>,
+        ]}
+        width={520}
+      >
+        {credModal.data && (
+          <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 8 }}>
+            <div>
+              <Text type="secondary">用户名：</Text>
+              {credModal.data.username
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.username}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            <div>
+              <Text type="secondary">密码：</Text>
+              {credModal.data.password
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.password}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            {credModal.data.extra && (
+              <div>
+                <Text type="secondary">附加信息：</Text>
+                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{credModal.data.extra}</Text>
+              </div>
+            )}
+            {credModal.data.privateKey && (
+              <div>
+                <Text type="secondary">私钥（PEM）：</Text>
+                <Input.TextArea
+                  value={credModal.data.privateKey}
+                  readOnly
+                  rows={6}
+                  style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
+                />
+                <Button
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  style={{ marginTop: 6 }}
+                  onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
+                >
+                  下载 .pem 文件
+                </Button>
+              </div>
+            )}
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -43,6 +43,7 @@ model Credential {
   username   String // encrypted
   password   String // encrypted
   extra      String   @default("") // encrypted JSON for additional fields
+  privateKey String   @default("") // encrypted PEM private key
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

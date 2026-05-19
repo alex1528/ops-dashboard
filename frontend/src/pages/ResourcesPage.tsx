@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   App, Button, Modal, Form, Input, Select, InputNumber, Switch,
-  Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card,
+  Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
-  ThunderboltOutlined, HolderOutlined,
+  ThunderboltOutlined, HolderOutlined, UploadOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -24,6 +24,7 @@ interface CredentialDetail {
   username: string;
   password: string;
   extra: string;
+  privateKey: string;
 }
 
 interface Resource {
@@ -37,7 +38,7 @@ interface Resource {
   sortOrder: number;
   enabled: boolean;
   healthCheckEnabled: boolean;
-  credential: { id: string; username: string; hasPassword: boolean } | null;
+  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
 
@@ -193,7 +194,9 @@ export default function ResourcesPage() {
   const [credentialModalTitle, setCredentialModalTitle] = useState('查看凭据');
   const [credentialError, setCredentialError] = useState('');
   const [credentialData, setCredentialData] = useState<CredentialDetail | null>(null);
+  const [credentialResourceName, setCredentialResourceName] = useState('');
   const [form] = Form.useForm();
+  const privateKeyFileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -279,6 +282,7 @@ export default function ResourcesPage() {
     setCredentialModalTitle('查看凭据');
     setCredentialError('');
     setCredentialData(null);
+    setCredentialResourceName('');
     messageApi.destroy();
   };
 
@@ -304,6 +308,7 @@ export default function ResourcesPage() {
         values.credUsername = data.username ?? '';
         values.credPassword = data.password ?? '';
         values.credExtra = data.extra ?? '';
+        values.credPrivateKey = data.privateKey ?? '';
       }
     } catch { /* 凭据获取失败时保持空白 */ }
     form.setFieldsValue(values);
@@ -316,6 +321,7 @@ export default function ResourcesPage() {
       if (!values.credUsername) delete values.credUsername;
       if (!values.credPassword) delete values.credPassword;
       if (!values.credExtra) delete values.credExtra;
+      if (!values.credPrivateKey) delete values.credPrivateKey;
     }
     try {
       if (editingId) {
@@ -355,6 +361,7 @@ export default function ResourcesPage() {
   const viewCredential = async (resource: Resource) => {
     messageApi.destroy();
     setCredentialModalTitle(resource.name ? `查看凭据 - ${resource.name}` : '查看凭据');
+    setCredentialResourceName(resource.name || resource.id);
     setCredentialModalOpen(true);
     setCredentialModalLoading(true);
     setCredentialError('');
@@ -363,7 +370,7 @@ export default function ResourcesPage() {
       const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
       if (!data || data.exists === false) {
-        setCredentialData({ exists: false, username: '', password: '', extra: '' });
+        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '' });
         return;
       }
       setCredentialData({
@@ -371,6 +378,7 @@ export default function ResourcesPage() {
         username: data.username ?? '',
         password: data.password ?? '',
         extra: data.extra ?? '',
+        privateKey: data.privateKey ?? '',
       });
     } catch (err: any) {
       setCredentialError(err?.response?.data?.message || '凭据获取失败');
@@ -386,6 +394,18 @@ export default function ResourcesPage() {
         {value}
       </Text>
     );
+  };
+
+  /** 下载私钥为 .pem 文件 */
+  const downloadPrivateKey = (content: string, resourceName: string) => {
+    const blob = new Blob([content], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = resourceName.replace(/[^\w\u4e00-\u9fa5-]/g, '_');
+    a.download = `${safeName}_private_key.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -472,6 +492,47 @@ export default function ResourcesPage() {
           <Form.Item name="credExtra" label="附加信息">
             <Input.TextArea rows={2} placeholder="留空则不更新" />
           </Form.Item>
+          <Form.Item
+            name="credPrivateKey"
+            label="私钥（PEM）"
+            tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
+          >
+            <Input.TextArea
+              rows={4}
+              placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </Form.Item>
+          {/* 隐藏的文件输入，用于上传私钥文件 */}
+          <input
+            ref={privateKeyFileRef}
+            type="file"
+            accept=".pem,.key,.txt"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const content = ev.target?.result as string;
+                form.setFieldValue('credPrivateKey', content);
+                messageApi.success(`已读取文件：${file.name}`);
+              };
+              reader.readAsText(file);
+              e.target.value = ''; // 允许重复选择同一文件
+            }}
+          />
+          <Form.Item label=" " colon={false}>
+            <Button
+              icon={<UploadOutlined />}
+              onClick={() => privateKeyFileRef.current?.click()}
+            >
+              上传私钥文件
+            </Button>
+            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+              支持 .pem / .key / .txt 格式
+            </Text>
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -481,9 +542,18 @@ export default function ResourcesPage() {
         onCancel={closeCredentialModal}
         destroyOnHidden
         footer={[
+          credentialData?.exists && credentialData.privateKey ? (
+            <Button
+              key="download"
+              icon={<DownloadOutlined />}
+              onClick={() => downloadPrivateKey(credentialData.privateKey, credentialResourceName)}
+            >
+              下载私钥 (.pem)
+            </Button>
+          ) : null,
           <Button key="close" onClick={closeCredentialModal}>关闭</Button>,
         ]}
-        width={520}
+        width={560}
       >
         {credentialModalLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
@@ -514,6 +584,27 @@ export default function ResourcesPage() {
               <Text type="secondary">附加信息</Text>
               <div>{renderCredentialValue(credentialData.extra)}</div>
             </div>
+            {credentialData.privateKey && (
+              <div>
+                <Text type="secondary">私钥（PEM）</Text>
+                <div>
+                  <Input.TextArea
+                    value={credentialData.privateKey}
+                    readOnly
+                    rows={6}
+                    style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
+                  />
+                  <Button
+                    size="small"
+                    icon={<DownloadOutlined />}
+                    style={{ marginTop: 6 }}
+                    onClick={() => downloadPrivateKey(credentialData.privateKey, credentialResourceName)}
+                  >
+                    下载 .pem 文件
+                  </Button>
+                </div>
+              </div>
+            )}
           </Space>
         ) : null}
       </Modal>

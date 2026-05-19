@@ -15,6 +15,7 @@ export class CreateResourceDto {
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
+  @IsString() @IsOptional() credPrivateKey?: string; // PEM private key, no length limit
 }
 
 export class UpdateResourceDto {
@@ -31,6 +32,7 @@ export class UpdateResourceDto {
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
+  @IsString() @IsOptional() credPrivateKey?: string; // PEM private key, no length limit
 }
 
 // --- Reorder DTOs ---
@@ -60,5 +62,5 @@ export class ReorderResourcesDto {
 }
 
 export class ClearCredentialFieldsDto {
-  @IsString() @IsIn(['username', 'password', 'extra', 'all']) field!: string;
+  @IsString() @IsIn(['username', 'password', 'extra', 'privateKey', 'all']) field!: string;
 }
