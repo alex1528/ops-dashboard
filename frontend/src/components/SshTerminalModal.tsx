@@ -37,6 +37,8 @@ export default function SshTerminalModal({
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  // Stores ssh:connect payload when socket connects before xterm is ready
+  const pendingConnectRef = useRef<Record<string, string | number> | null>(null);
   const [connState, setConnState] = useState<ConnState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [form] = Form.useForm<{ username: string; password: string }>();
@@ -48,6 +50,7 @@ export default function SshTerminalModal({
     xtermRef.current?.dispose();
     xtermRef.current = null;
     fitAddonRef.current = null;
+    pendingConnectRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -91,6 +94,20 @@ export default function SshTerminalModal({
     term.onData((data) => {
       socketRef.current?.emit('ssh:data', { data });
     });
+
+    // If ssh:connect was deferred (socket connected before xterm mounted), send it now
+    if (pendingConnectRef.current && socketRef.current?.connected) {
+      const payload = pendingConnectRef.current;
+      payload.cols = term.cols;
+      payload.rows = term.rows;
+      socketRef.current.emit('ssh:connect', payload);
+      pendingConnectRef.current = null;
+    }
+
+    // Sync actual terminal size to backend immediately after mount
+    // (ssh:connect may have been sent before xterm was ready)
+    const { cols, rows } = term;
+    socketRef.current?.emit('ssh:resize', { cols, rows });
   }, [connState]);
 
   // ── Handle window resize ─────────────────────────────────────────────────
@@ -124,11 +141,19 @@ export default function SshTerminalModal({
       socketRef.current = socket;
 
       socket.on('connect', () => {
-        // Send SSH connect request
-        const payload: Record<string, string> = { resourceId };
+        // Send SSH connect request with current terminal dimensions
+        const payload: Record<string, string | number> = { resourceId };
         if (username) payload.username = username;
         if (password) payload.password = password;
-        socket.emit('ssh:connect', payload);
+        // Pass actual terminal size so PTY is initialized correctly
+        if (xtermRef.current) {
+          payload.cols = xtermRef.current.cols;
+          payload.rows = xtermRef.current.rows;
+          socket.emit('ssh:connect', payload);
+        } else {
+          // xterm not yet mounted (React hasn't rendered yet); defer until after mount
+          pendingConnectRef.current = payload;
+        }
       });
 
       socket.on('connect_error', (err) => {

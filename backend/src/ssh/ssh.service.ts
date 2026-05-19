@@ -47,8 +47,8 @@ export class SshService {
 
         this.sessions.set(socketId, { client, stream });
 
-        stream.on('data', (data: Buffer) => onData(data.toString('binary')));
-        stream.stderr.on('data', (data: Buffer) => onData(data.toString('binary')));
+        stream.on('data', (data: Buffer) => onData(data.toString('utf8')));
+        stream.stderr.on('data', (data: Buffer) => onData(data.toString('utf8')));
         stream.on('close', () => {
           this.logger.log(`SSH stream closed for socket ${socketId}`);
           this.sessions.delete(socketId);

@@ -26,6 +26,7 @@ export default function TerminalPage() {
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const pendingConnectRef = useRef<Record<string, string | number> | null>(null);
 
   const [connState, setConnState] = useState<ConnState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -62,6 +63,7 @@ export default function TerminalPage() {
     xtermRef.current?.dispose();
     xtermRef.current = null;
     fitAddonRef.current = null;
+    pendingConnectRef.current = null;
   }, []);
 
   useEffect(() => () => cleanup(), [cleanup]);
@@ -95,6 +97,19 @@ export default function TerminalPage() {
     term.onData((data) => {
       socketRef.current?.emit('ssh:data', { data });
     });
+
+    // If ssh:connect was deferred, send it now with actual dimensions
+    if (pendingConnectRef.current && socketRef.current?.connected) {
+      const payload = pendingConnectRef.current;
+      payload.cols = term.cols;
+      payload.rows = term.rows;
+      socketRef.current.emit('ssh:connect', payload);
+      pendingConnectRef.current = null;
+    }
+
+    // Sync actual terminal size to backend immediately after mount
+    const { cols, rows } = term;
+    socketRef.current?.emit('ssh:resize', { cols, rows });
   }, [connState]);
 
   // ── Window resize ─────────────────────────────────────────────────────────
@@ -126,10 +141,17 @@ export default function TerminalPage() {
       socketRef.current = socket;
 
       socket.on('connect', () => {
-        const payload: Record<string, string> = { resourceId };
+        const payload: Record<string, string | number> = { resourceId };
         if (username) payload.username = username;
         if (password) payload.password = password;
-        socket.emit('ssh:connect', payload);
+        // Pass actual terminal size so PTY is initialized correctly
+        if (xtermRef.current) {
+          payload.cols = xtermRef.current.cols;
+          payload.rows = xtermRef.current.rows;
+          socket.emit('ssh:connect', payload);
+        } else {
+          pendingConnectRef.current = payload;
+        }
       });
 
       socket.on('connect_error', (err) => {

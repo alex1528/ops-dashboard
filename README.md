@@ -314,21 +314,22 @@ SMTP_FROM=ops@example.com
 ### 技术实现
 
 - **前端**：`@xterm/xterm` + `@xterm/addon-fit` 渲染终端，`socket.io-client` 建立 WebSocket 连接
-- **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接
+- **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接；终端输出使用 `utf8` 编码，正确显示中文及 ANSI 颜色序列
 - **认证**：WebSocket 握手时验证 JWT Token（从 `handshake.auth.token` 读取），未登录连接自动拒绝
 - **私钥安全**：私钥在后端解密后直接传给 `ssh2`，不经过前端传输
 - **SSH 主机**：从资源 `url` 字段解析 hostname（如 `https://ga.anytoken.cloud` → `ga.anytoken.cloud`），端口固定 22
 - **SSH 用户名**：固定 `root`（密码模式下用户可自定义）
+- **PTY 尺寸同步**：前端在建立连接时携带实际终端尺寸（`cols/rows`）初始化 PTY；xterm.js 挂载后立即发送 `ssh:resize` 修正尺寸；若 socket `connect` 事件先于 xterm 渲染触发，则暂存 payload 待 xterm 就绪后再发出，确保 `ls`、`top`、`htop` 等命令输出不错位
 
 ### WebSocket 事件
 
 | 方向 | 事件 | 数据 | 说明 |
 |------|------|------|------|
-| 客户端 → 服务端 | `ssh:connect` | `{ resourceId, username?, password? }` | 发起 SSH 连接 |
+| 客户端 → 服务端 | `ssh:connect` | `{ resourceId, username?, password?, cols?, rows? }` | 发起 SSH 连接（携带终端尺寸） |
 | 客户端 → 服务端 | `ssh:data` | `{ data: string }` | 键盘输入 |
 | 客户端 → 服务端 | `ssh:resize` | `{ cols, rows }` | 调整终端窗口大小 |
 | 客户端 → 服务端 | `ssh:disconnect` | — | 主动断开 |
-| 服务端 → 客户端 | `ssh:data` | `{ data: string }` | 终端输出 |
+| 服务端 → 客户端 | `ssh:data` | `{ data: string }` | 终端输出（UTF-8 编码） |
 | 服务端 → 客户端 | `ssh:error` | `{ message: string }` | 错误信息 |
 | 服务端 → 客户端 | `ssh:close` | `{ message: string }` | 连接关闭通知 |
 

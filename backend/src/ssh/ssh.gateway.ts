@@ -70,7 +70,7 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('ssh:connect')
   async handleSshConnect(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { resourceId: string; username?: string; password?: string },
+    @MessageBody() payload: { resourceId: string; username?: string; password?: string; cols?: number; rows?: number },
   ) {
     const user = (client as any).user;
     if (!user) {
@@ -78,7 +78,7 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const { resourceId, username: clientUsername, password: clientPassword } = payload;
+    const { resourceId, username: clientUsername, password: clientPassword, cols: clientCols, rows: clientRows } = payload;
 
     // Load resource
     const resource = await this.prisma.resource.findUnique({
@@ -137,12 +137,14 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Audit log
     await this.audit.log(user.id, 'ssh.connect', resourceId, `host=${host}`, client.handshake.address);
 
-    // Establish SSH connection
+    // Establish SSH connection with actual terminal dimensions from client
+    const initCols = (clientCols && clientCols > 0) ? clientCols : 220;
+    const initRows = (clientRows && clientRows > 0) ? clientRows : 50;
     this.sshService.connect(
       client.id,
       connectConfig,
-      80,
-      24,
+      initCols,
+      initRows,
       (data) => client.emit('ssh:data', { data }),
       () => client.emit('ssh:close', { message: 'SSH 连接已关闭' }),
       (msg) => client.emit('ssh:error', { message: msg }),
