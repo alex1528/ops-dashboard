@@ -229,11 +229,11 @@ export default function TerminalPage() {
             type="text"
             icon={<ArrowLeftOutlined />}
             onClick={() => nav('/')}
-            style={{ color: '#aaa' }}
+            className="terminal-back-button"
           >
             返回
           </Button>
-          <span style={{ color: '#ccc', fontFamily: 'monospace', fontSize: 13 }}>
+          <span className="terminal-page-title">
             🖥 SSH — {resourceName || resourceId}
           </span>
           {connState === 'connected' && (
@@ -266,7 +266,7 @@ export default function TerminalPage() {
       {/* Credential form */}
       {connState === 'form' && (
         <div className="terminal-page-form">
-          <Text style={{ color: '#aaa', display: 'block', marginBottom: 20, fontSize: 13 }}>
+          <Text className="terminal-page-hint">
             该资源未配置私钥凭据，请输入 SSH 登录信息：
           </Text>
           <Form
@@ -274,30 +274,30 @@ export default function TerminalPage() {
             layout="vertical"
             onFinish={handleFormSubmit}
             initialValues={{ username: 'root' }}
-            style={{ maxWidth: 400 }}
+            className="terminal-page-form-card"
           >
             <Form.Item
-              label={<span style={{ color: '#ccc' }}>用户名</span>}
+              label={<span className="terminal-form-label">用户名</span>}
               name="username"
               rules={[{ required: true, message: '请输入用户名' }]}
             >
               <Input
                 placeholder="root"
-                style={{ background: '#0d0d1a', borderColor: '#333', color: '#e0e0e0' }}
+                className="terminal-form-input"
               />
             </Form.Item>
             <Form.Item
-              label={<span style={{ color: '#ccc' }}>密码</span>}
+              label={<span className="terminal-form-label">密码</span>}
               name="password"
               rules={[{ required: true, message: '请输入密码' }]}
             >
               <Input.Password
                 placeholder="SSH 密码"
-                style={{ background: '#0d0d1a', borderColor: '#333', color: '#e0e0e0' }}
+                className="terminal-form-input"
               />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" style={{ background: '#00b96b' }}>
+              <Button type="primary" htmlType="submit" className="terminal-submit-button">
                 连接
               </Button>
             </Form.Item>
@@ -308,8 +308,8 @@ export default function TerminalPage() {
       {/* Error state */}
       {connState === 'error' && !isTerminalVisible && (
         <div className="terminal-page-error">
-          <ExclamationCircleOutlined style={{ fontSize: 32, color: '#ff4d4f', marginBottom: 12 }} />
-          <div style={{ color: '#ff4d4f', marginBottom: 16 }}>{errorMsg}</div>
+          <ExclamationCircleOutlined className="terminal-error-icon" />
+          <div className="terminal-error-text">{errorMsg}</div>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={handleReconnect}>重新连接</Button>
             <Button onClick={() => nav('/')}>返回首页</Button>

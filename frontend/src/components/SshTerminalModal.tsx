@@ -247,19 +247,19 @@ export default function SshTerminalModal({
   const isTerminalVisible = connState === 'connecting' || connState === 'connected' || connState === 'closed';
 
   const titleBar = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 40 }}>
+    <div className="ssh-terminal-titlebar">
       <Space>
-        <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+        <span className="ssh-terminal-title">
           🖥 SSH — {resourceName}
         </span>
         {connState === 'connected' && (
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#52c41a', display: 'inline-block' }} />
+          <span className="terminal-status-dot terminal-status-dot--on" />
         )}
         {connState === 'connecting' && (
           <Spin size="small" />
         )}
         {(connState === 'closed' || connState === 'error') && (
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4d4f', display: 'inline-block' }} />
+          <span className="terminal-status-dot terminal-status-dot--off" />
         )}
       </Space>
       <Space size={4}>
@@ -287,18 +287,17 @@ export default function SshTerminalModal({
       onCancel={handleClose}
       footer={null}
       width="90vw"
-      style={{ top: 20, maxWidth: 1200 }}
       styles={{
         body: { padding: 0, background: '#1a1a2e', borderRadius: '0 0 8px 8px' },
         header: { background: '#0d0d1a', borderBottom: '1px solid #333', borderRadius: '8px 8px 0 0' },
       }}
       destroyOnClose
-      className="ssh-terminal-modal"
+      className="ssh-terminal-modal ssh-terminal-modal-window"
     >
       {/* Credential form (no private key) */}
       {connState === 'form' && (
-        <div style={{ padding: 32, background: '#1a1a2e', borderRadius: '0 0 8px 8px' }}>
-          <Text style={{ color: '#aaa', display: 'block', marginBottom: 20, fontSize: 13 }}>
+        <div className="ssh-terminal-form-wrap">
+          <Text className="ssh-terminal-form-text">
             该资源未配置私钥凭据，请输入 SSH 登录信息：
           </Text>
           <Form
@@ -308,32 +307,32 @@ export default function SshTerminalModal({
             initialValues={{ username: 'root' }}
           >
             <Form.Item
-              label={<span style={{ color: '#ccc' }}>用户名</span>}
+              label={<span className="ssh-terminal-label">用户名</span>}
               name="username"
               rules={[{ required: true, message: '请输入用户名' }]}
             >
               <Input
-                prefix={<span style={{ color: '#666' }}>$</span>}
+                prefix={<span className="ssh-terminal-prefix">$</span>}
                 placeholder="root"
-                style={{ background: '#0d0d1a', borderColor: '#333', color: '#e0e0e0' }}
+                className="ssh-terminal-input"
               />
             </Form.Item>
             <Form.Item
-              label={<span style={{ color: '#ccc' }}>密码</span>}
+              label={<span className="ssh-terminal-label">密码</span>}
               name="password"
               rules={[{ required: true, message: '请输入密码' }]}
             >
               <Input.Password
                 placeholder="SSH 密码"
-                style={{ background: '#0d0d1a', borderColor: '#333', color: '#e0e0e0' }}
+                className="ssh-terminal-input"
               />
             </Form.Item>
-            <Form.Item style={{ marginBottom: 0 }}>
+            <Form.Item className="ssh-terminal-form-actions">
               <Space>
-                <Button type="primary" htmlType="submit" style={{ background: '#00b96b' }}>
+                <Button type="primary" htmlType="submit" className="ssh-terminal-submit-button">
                   连接
                 </Button>
-                <Button onClick={handleClose} style={{ borderColor: '#333', color: '#aaa', background: 'transparent' }}>
+                <Button onClick={handleClose} className="ssh-terminal-cancel-button">
                   取消
                 </Button>
               </Space>
@@ -344,9 +343,9 @@ export default function SshTerminalModal({
 
       {/* Error state (before terminal is shown) */}
       {connState === 'error' && !isTerminalVisible && (
-        <div style={{ padding: 32, textAlign: 'center', background: '#1a1a2e', borderRadius: '0 0 8px 8px' }}>
-          <ExclamationCircleOutlined style={{ fontSize: 32, color: '#ff4d4f', marginBottom: 12 }} />
-          <div style={{ color: '#ff4d4f', marginBottom: 16 }}>{errorMsg}</div>
+        <div className="ssh-terminal-error-wrap">
+          <ExclamationCircleOutlined className="ssh-terminal-error-icon" />
+          <div className="ssh-terminal-error-text">{errorMsg}</div>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={handleReconnect}>重新连接</Button>
             <Button onClick={handleClose}>关闭</Button>
@@ -356,17 +355,7 @@ export default function SshTerminalModal({
 
       {/* Terminal container */}
       {isTerminalVisible && (
-        <div
-          ref={termRef}
-          style={{
-            width: '100%',
-            height: '65vh',
-            minHeight: 400,
-            background: '#1a1a2e',
-            borderRadius: '0 0 8px 8px',
-            overflow: 'hidden',
-          }}
-        />
+        <div ref={termRef} className="ssh-terminal-surface" />
       )}
     </Modal>
   );

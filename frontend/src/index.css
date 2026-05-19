@@ -89,6 +89,81 @@ body {
   justify-content: space-between;
   margin-bottom: 16px;
 }
+.resources-group-wrap {
+  margin-bottom: 16px;
+}
+.resources-group-handle {
+  cursor: grab;
+  color: #999;
+  font-size: 16px;
+}
+.resources-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+}
+.resources-row-handle {
+  cursor: grab;
+  color: #bbb;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.resources-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.resources-row-url {
+  font-size: 12px;
+}
+.resources-row-actions {
+  flex-shrink: 0;
+}
+.resources-copy-value {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.resources-empty {
+  text-align: center;
+  padding: 48px;
+}
+.resources-section-title {
+  margin-top: 16px !important;
+}
+.resources-section-note {
+  font-size: 12px;
+  display: block;
+  margin-bottom: 12px;
+}
+.resources-private-key-input {
+  font-family: monospace;
+  font-size: 12px;
+}
+.resources-hidden-input {
+  display: none;
+}
+.resources-upload-hint {
+  margin-left: 8px;
+  font-size: 12px;
+}
+.resources-credential-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+.resources-credential-paragraph {
+  margin-bottom: 0 !important;
+}
+.resources-credential-space {
+  width: 100%;
+}
+.resources-credential-section-label {
+  font-size: 12px;
+}
+.resources-credential-divider {
+  margin: 4px 0 !important;
+}
 /* Inline page title (removes default margin) */
 .page-title-inline {
   margin: 0 !important;
@@ -115,14 +190,43 @@ body {
   display: flex;
   gap: 16px;
 }
+.status-title {
+  margin: 0 !important;
+  color: #fff !important;
+}
+.status-subtitle {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+}
+.status-summary-text {
+  color: #fff;
+}
 .status-bar-wrap {
   margin-bottom: 16px;
 }
 .status-group {
   margin-bottom: 20px;
 }
+.status-group-label {
+  font-size: 14px;
+  color: #666;
+  display: block;
+  margin-bottom: 8px;
+}
 .status-card {
   border-radius: 8px !important;
+}
+.status-icon {
+  font-size: 20px;
+}
+.status-icon--up {
+  color: #52c41a;
+}
+.status-icon--down {
+  color: #ff4d4f;
+}
+.status-icon--unknown {
+  color: #d9d9d9;
 }
 .status-card-top {
   display: flex;
@@ -140,12 +244,37 @@ body {
 .status-card-meta {
   margin-top: 6px;
 }
+.status-status-text {
+  font-size: 12px;
+}
 .status-card-stats {
   margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+}
+.status-metric-tag {
+  border-radius: 10px;
+}
+.status-time {
+  font-size: 11px;
+  margin-left: auto;
+}
+.status-description {
+  font-size: 11px;
+  display: block;
+  margin-top: 6px;
+}
+.status-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.status-action-button {
+  font-size: 12px;
+  padding: 0;
 }
 .status-empty {
   text-align: center;
@@ -154,6 +283,28 @@ body {
 .status-footer {
   text-align: center;
   padding: 24px 0 0;
+}
+.status-footer-text {
+  font-size: 12px;
+}
+.status-cred-space {
+  width: 100%;
+  margin-top: 8px;
+}
+.status-cred-copy {
+  word-break: break-all;
+}
+.status-cred-extra {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.status-cred-privatekey {
+  font-family: monospace;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.status-cred-download {
+  margin-top: 6px;
 }
 @media (max-width: 576px) {
   .status-header { padding: 16px; }
@@ -248,6 +399,87 @@ body {
 .ssh-terminal-modal .xterm-viewport {
   overflow-y: auto !important;
 }
+.ssh-terminal-modal-window {
+  top: 20px;
+  max-width: 1200px;
+}
+.ssh-terminal-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 40px;
+}
+.ssh-terminal-title {
+  font-family: monospace;
+  font-size: 13px;
+}
+.ssh-terminal-form-wrap {
+  padding: 32px;
+  background: #1a1a2e;
+  border-radius: 0 0 8px 8px;
+}
+.ssh-terminal-form-text {
+  color: #aaa;
+  display: block;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.ssh-terminal-label {
+  color: #ccc;
+}
+.ssh-terminal-prefix {
+  color: #666;
+}
+.ssh-terminal-input.ant-input,
+.ssh-terminal-input.ant-input-affix-wrapper,
+.terminal-form-input.ant-input,
+.terminal-form-input.ant-input-affix-wrapper {
+  background: #0d0d1a;
+  border-color: #333;
+  color: #e0e0e0;
+}
+.ssh-terminal-input.ant-input-affix-wrapper input,
+.terminal-form-input.ant-input-affix-wrapper input {
+  background: transparent;
+  color: #e0e0e0;
+}
+.ssh-terminal-form-actions {
+  margin-bottom: 0 !important;
+}
+.ssh-terminal-submit-button,
+.terminal-submit-button {
+  background: #00b96b;
+}
+.ssh-terminal-cancel-button {
+  border-color: #333;
+  color: #aaa;
+  background: transparent;
+}
+.ssh-terminal-error-wrap {
+  padding: 32px;
+  text-align: center;
+  background: #1a1a2e;
+  border-radius: 0 0 8px 8px;
+}
+.ssh-terminal-error-icon,
+.terminal-error-icon {
+  font-size: 32px;
+  color: #ff4d4f;
+  margin-bottom: 12px;
+}
+.ssh-terminal-error-text,
+.terminal-error-text {
+  color: #ff4d4f;
+  margin-bottom: 16px;
+}
+.ssh-terminal-surface {
+  width: 100%;
+  height: 65vh;
+  min-height: 400px;
+  background: #1a1a2e;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
 
 /* Standalone terminal page */
 .terminal-page {
@@ -266,10 +498,30 @@ body {
   border-bottom: 1px solid #2a2a3e;
   flex-shrink: 0;
 }
+.terminal-back-button {
+  color: #aaa;
+}
+.terminal-page-title {
+  color: #ccc;
+  font-family: monospace;
+  font-size: 13px;
+}
 .terminal-page-form {
   padding: 40px;
   flex: 1;
   overflow-y: auto;
+}
+.terminal-page-hint {
+  color: #aaa;
+  display: block;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.terminal-page-form-card {
+  max-width: 400px;
+}
+.terminal-form-label {
+  color: #ccc;
 }
 .terminal-page-error {
   flex: 1;

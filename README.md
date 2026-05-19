@@ -1,5 +1,7 @@
 # Ops Dashboard
 
+<!-- markdownlint-disable MD013 -->
+
 运维统一入口看板 —— 汇总目标网址及相关资源到统一 Dashboard 页面，支持状态监控、凭据管理和一键直达。
 
 ## 技术栈
@@ -194,6 +196,9 @@ chmod +x clear-credential.sh
 # 清空所有凭据字段
 .\clear-credential.ps1 -r "聚合DNS" -f all
 
+# 清空私钥字段
+.\clear-credential.ps1 -r Certd -f privateKey
+
 # 显式指定凭据
 .\clear-credential.ps1 -r Certd -f extra -u admin -p mypass
 ```
@@ -209,6 +214,7 @@ chmod +x clear-credential.sh
 | `-H` / `--host` | 服务地址（可选，默认根据 `.env` 中 PORT 计算） |
 
 > 脚本通过登录 API 获取 JWT Token，查找目标资源后调用 `POST /api/resources/:id/credential/clear` 接口完成清空操作。
+> PowerShell 版本保留 `-u` / `-p` / `-H` 短参数别名，默认仍优先从 `.env` 读取管理员凭据和服务地址。
 > 对应的 API 接口也可直接通过 curl 或其他 HTTP 客户端调用。
 
 ## 数据库备份与恢复
@@ -327,7 +333,7 @@ SMTP_FROM=ops@example.com
 ### WebSocket 事件
 
 | 方向 | 事件 | 数据 | 说明 |
-|------|------|------|------|
+| ------ | ------ | ------ | ------ |
 | 客户端 → 服务端 | `ssh:connect` | `{ resourceId, username?, password?, cols?, rows? }` | 发起 SSH 连接（携带终端尺寸） |
 | 客户端 → 服务端 | `ssh:data` | `{ data: string }` | 键盘输入 |
 | 客户端 → 服务端 | `ssh:resize` | `{ cols, rows }` | 调整终端窗口大小 |

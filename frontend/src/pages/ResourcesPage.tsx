@@ -63,12 +63,20 @@ function SortableGroup({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `group-${groupData.group}`,
   });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    marginBottom: 16,
+  const groupContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const setGroupContainerRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    groupContainerRef.current = node;
   };
+
+  useEffect(() => {
+    const node = groupContainerRef.current;
+    if (!node) return;
+    node.style.transform = CSS.Transform.toString(transform) ?? '';
+    node.style.transition = transition ?? '';
+    node.style.opacity = isDragging ? '0.5' : '1';
+  }, [transform, transition, isDragging]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -83,7 +91,7 @@ function SortableGroup({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setGroupContainerRef} className="resources-group-wrap">
       <Card
         size="small"
         title={
@@ -91,7 +99,7 @@ function SortableGroup({
             <HolderOutlined
               {...attributes}
               {...listeners}
-              style={{ cursor: 'grab', color: '#999', fontSize: 16 }}
+              className="resources-group-handle"
             />
             <Text strong>{groupData.group === 'default' ? '未分组' : groupData.group}</Text>
             <Tag>{groupData.items.length} 项</Tag>
@@ -128,17 +136,21 @@ function SortableResourceRow({
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: r.id });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '8px 12px',
-    borderBottom: '1px solid #f0f0f0',
-    background: isDragging ? '#fafafa' : '#fff',
-    gap: 12,
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  const setRowContainerRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    rowRef.current = node;
   };
+
+  useEffect(() => {
+    const node = rowRef.current;
+    if (!node) return;
+    node.style.transform = CSS.Transform.toString(transform) ?? '';
+    node.style.transition = transition ?? '';
+    node.style.opacity = isDragging ? '0.5' : '1';
+    node.style.background = isDragging ? '#fafafa' : '#fff';
+  }, [transform, transition, isDragging]);
 
   const statusTag = () => {
     if (!r.healthCheckEnabled) return <Tag color="cyan">免检</Tag>;
@@ -151,13 +163,13 @@ function SortableResourceRow({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setRowContainerRef} className="resources-row">
       <HolderOutlined
         {...attributes}
         {...listeners}
-        style={{ cursor: 'grab', color: '#bbb', fontSize: 14, flexShrink: 0 }}
+        className="resources-row-handle"
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="resources-row-main">
         <Space size="small" wrap>
           <Text strong>{r.name}</Text>
           {!r.enabled && <Tag color="default">已禁用</Tag>}
@@ -168,10 +180,10 @@ function SortableResourceRow({
           {statusTag()}
         </Space>
         <div>
-          <Text type="secondary" style={{ fontSize: 12 }} copyable>{r.url}</Text>
+          <Text type="secondary" className="resources-row-url" copyable>{r.url}</Text>
         </div>
       </div>
-      <Space size="small" style={{ flexShrink: 0 }}>
+      <Space size="small" className="resources-row-actions">
         <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => onEdit(r)} /></Tooltip>
         <Tooltip title="查看凭据"><Button size="small" icon={<EyeOutlined />} onClick={() => onView(r)} /></Tooltip>
         <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => onCheck(r.id)} /></Tooltip>
@@ -403,7 +415,7 @@ export default function ResourcesPage() {
   const renderCredentialValue = (value: string) => {
     if (!value) return <Text type="secondary">（空）</Text>;
     return (
-      <Text copyable={{ text: value }} strong style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+      <Text copyable={{ text: value }} strong className="resources-copy-value">
         {value}
       </Text>
     );
@@ -424,7 +436,7 @@ export default function ResourcesPage() {
   return (
     <div>
       <div className="resources-header">
-        <Typography.Title level={4} style={{ margin: 0 }}>资源管理</Typography.Title>
+        <Typography.Title level={4} className="page-title-inline">资源管理</Typography.Title>
         <Space>
           <Text type="secondary">拖拽 ⋮⋮ 图标可调整分组或资源顺序</Text>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增资源</Button>
@@ -448,7 +460,7 @@ export default function ResourcesPage() {
           </SortableContext>
         </DndContext>
         {!loading && resources.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 48 }}>
+          <div className="resources-empty">
             <Text type="secondary">暂无资源，点击"新增资源"添加。</Text>
           </div>
         )}
@@ -485,10 +497,10 @@ export default function ResourcesPage() {
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
           </Form.Item>
 
-          <Typography.Title level={5} style={{ marginTop: 16 }}>
+          <Typography.Title level={5} className="resources-section-title">
             自动登录 Web 系统（加密存储）
           </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+          <Typography.Text type="secondary" className="resources-section-note">
             启用后，系统将自动把凭据填入目标 Web 系统的登录表单中完成登录
           </Typography.Text>
           <Form.Item
@@ -517,10 +529,10 @@ export default function ResourcesPage() {
             </>
           )}
 
-          <Typography.Title level={5} style={{ marginTop: 16 }}>
+          <Typography.Title level={5} className="resources-section-title">
             Linux SSH 凭据（Web Terminal）
           </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+          <Typography.Text type="secondary" className="resources-section-note">
             用于通过浏览器内置 Web Terminal 以 SSH 方式登录目标 Linux amd64 服务器
           </Typography.Text>
           <Form.Item
@@ -545,7 +557,7 @@ export default function ResourcesPage() {
                 <Input.TextArea
                   rows={4}
                   placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
-                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                  className="resources-private-key-input"
                 />
               </Form.Item>
               {/* 隐藏的文件输入，用于上传私钥文件 */}
@@ -553,7 +565,9 @@ export default function ResourcesPage() {
                 ref={privateKeyFileRef}
                 type="file"
                 accept=".pem,.key,.txt"
-                style={{ display: 'none' }}
+                aria-label="上传 PEM 私钥文件"
+                title="上传 PEM 私钥文件"
+                className="resources-hidden-input"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -574,7 +588,7 @@ export default function ResourcesPage() {
                 >
                   上传私钥文件
                 </Button>
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                <Text type="secondary" className="resources-upload-hint">
                   支持 .pem / .key / .txt 格式
                 </Text>
               </Form.Item>
@@ -603,23 +617,23 @@ export default function ResourcesPage() {
         width={560}
       >
         {credentialModalLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+          <div className="resources-credential-loading">
             <Space direction="vertical" align="center" size="middle">
               <Spin />
               <Text type="secondary">正在获取凭据...</Text>
             </Space>
           </div>
         ) : credentialError ? (
-          <Typography.Paragraph type="danger" style={{ marginBottom: 0 }}>
+          <Typography.Paragraph type="danger" className="resources-credential-paragraph">
             {credentialError}
           </Typography.Paragraph>
         ) : credentialData?.exists === false ? (
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          <Typography.Paragraph type="secondary" className="resources-credential-paragraph">
             当前资源未配置凭据。
           </Typography.Paragraph>
         ) : credentialData ? (
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          <Space direction="vertical" size="large" className="resources-credential-space">
+            <Typography.Text type="secondary" className="resources-credential-section-label">
               自动登录 Web 系统
             </Typography.Text>
             <div>
@@ -642,8 +656,8 @@ export default function ResourcesPage() {
               <Text type="secondary">附加信息</Text>
               <div>{renderCredentialValue(credentialData.extra)}</div>
             </div>
-            <Divider style={{ margin: '4px 0' }} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Divider className="resources-credential-divider" />
+            <Typography.Text type="secondary" className="resources-credential-section-label">
               Linux SSH 凭据（Web Terminal）
             </Typography.Text>
             <div>

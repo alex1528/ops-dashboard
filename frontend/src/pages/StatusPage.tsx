@@ -102,9 +102,9 @@ export default function StatusPage() {
     ] as [string, ResourceStatus[]]);
 
   const statusIcon = (s?: string) => {
-    if (s === 'up') return <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />;
-    if (s === 'down') return <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />;
-    return <QuestionCircleOutlined style={{ color: '#d9d9d9', fontSize: 20 }} />;
+    if (s === 'up') return <CheckCircleOutlined className="status-icon status-icon--up" />;
+    if (s === 'down') return <CloseCircleOutlined className="status-icon status-icon--down" />;
+    return <QuestionCircleOutlined className="status-icon status-icon--unknown" />;
   };
 
   const msColor = (ms: number | null | undefined) => {
@@ -118,20 +118,20 @@ export default function StatusPage() {
     <div className="status-page">
       <div className="status-header">
         <div>
-          <Title level={3} style={{ margin: 0, color: '#fff' }}>服务状态监控</Title>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+          <Title level={3} className="status-title">服务状态监控</Title>
+          <Text className="status-subtitle">
             自动刷新 · 上次更新 {lastRefresh || '--:--:--'}
           </Text>
         </div>
         <div className="status-summary">
           {total > 0 && (
             <>
-              <Badge status="success" text={<Text style={{ color: '#fff' }}>{upCount} 正常</Text>} />
+              <Badge status="success" text={<Text className="status-summary-text">{upCount} 正常</Text>} />
               {downCount > 0 && (
-                <Badge status="error" text={<Text style={{ color: '#fff' }}>{downCount} 异常</Text>} />
+                <Badge status="error" text={<Text className="status-summary-text">{downCount} 异常</Text>} />
               )}
               {total - upCount - downCount > 0 && (
-                <Badge status="default" text={<Text style={{ color: '#fff' }}>{total - upCount - downCount} 未知</Text>} />
+                <Badge status="default" text={<Text className="status-summary-text">{total - upCount - downCount} 未知</Text>} />
               )}
             </>
           )}
@@ -153,7 +153,7 @@ export default function StatusPage() {
       <Spin spinning={loading}>
         {sortedGroups.map(([group, items]) => (
           <div key={group} className="status-group">
-            <Text strong style={{ fontSize: 14, color: '#666', display: 'block', marginBottom: 8 }}>
+            <Text strong className="status-group-label">
               {group === 'default' ? '未分组' : group}
             </Text>
             <Row gutter={[12, 12]}>
@@ -168,7 +168,7 @@ export default function StatusPage() {
                       <Badge
                         status={r.lastHealth?.status === 'up' ? 'success' : r.lastHealth?.status === 'down' ? 'error' : 'default'}
                         text={
-                          <Text type="secondary" style={{ fontSize: 12 }}>
+                          <Text type="secondary" className="status-status-text">
                             {r.lastHealth?.skipped ? '免检·默认正常' : r.lastHealth?.status === 'up' ? '正常运行' : r.lastHealth?.status === 'down' ? '服务异常' : '状态未知'}
                           </Text>
                         }
@@ -176,33 +176,33 @@ export default function StatusPage() {
                     </div>
                     <div className="status-card-stats">
                       {r.lastHealth?.responseMs != null && !r.lastHealth?.skipped && (
-                        <Tag color={msColor(r.lastHealth.responseMs)} style={{ borderRadius: 10 }}>
+                        <Tag color={msColor(r.lastHealth.responseMs)} className="status-metric-tag">
                           {r.lastHealth.responseMs}ms
                         </Tag>
                       )}
                       {r.lastHealth?.statusCode != null && (
-                        <Tag style={{ borderRadius: 10 }}>HTTP {r.lastHealth.statusCode}</Tag>
+                        <Tag className="status-metric-tag">HTTP {r.lastHealth.statusCode}</Tag>
                       )}
                       {r.lastHealth?.checkedAt && (
-                        <Text type="secondary" style={{ fontSize: 11, marginLeft: 'auto' }}>
+                        <Text type="secondary" className="status-time">
                           {dayjs(r.lastHealth.checkedAt).format('HH:mm:ss')}
                         </Text>
                       )}
                     </div>
                     {r.description && (
-                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                      <Text type="secondary" className="status-description">
                         {r.description}
                       </Text>
                     )}
                     {isAuthenticated && (
-                      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                      <div className="status-actions">
                         <Tooltip title="查看凭据">
                           <Button
                             type="link"
                             size="small"
                             icon={<EyeOutlined />}
                             onClick={() => viewCredential(r.id, r.name)}
-                            style={{ fontSize: 12, padding: 0 }}
+                            className="status-action-button"
                           />
                         </Tooltip>
                         {r.sshEnabled && (
@@ -212,7 +212,7 @@ export default function StatusPage() {
                               size="small"
                               icon={<CodeOutlined />}
                               onClick={() => setSshModal({ open: true, resourceId: r.id, resourceName: r.name, hasPrivateKey: !!r.hasPrivateKey })}
-                              style={{ fontSize: 12, padding: 0 }}
+                              className="status-action-button"
                             />
                           </Tooltip>
                         )}
@@ -232,7 +232,7 @@ export default function StatusPage() {
       </Spin>
 
       <div className="status-footer">
-        <Text type="secondary" style={{ fontSize: 12 }}>Ops Dashboard · 状态页 · 每 30 秒自动刷新</Text>
+        <Text type="secondary" className="status-footer-text">Ops Dashboard · 状态页 · 每 30 秒自动刷新</Text>
       </div>
 
       {/* 凭据查看弹窗（受控，支持私钥下载） */}
@@ -256,23 +256,23 @@ export default function StatusPage() {
         width={520}
       >
         {credModal.data && (
-          <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 8 }}>
+          <Space direction="vertical" size="middle" className="status-cred-space">
             <div>
               <Text type="secondary">用户名：</Text>
               {credModal.data.username
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.username}</Text>
+                ? <Text strong copyable className="status-cred-copy">{credModal.data.username}</Text>
                 : <Text type="secondary">（空）</Text>}
             </div>
             <div>
               <Text type="secondary">密码：</Text>
               {credModal.data.password
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.password}</Text>
+                ? <Text strong copyable className="status-cred-copy">{credModal.data.password}</Text>
                 : <Text type="secondary">（空）</Text>}
             </div>
             {credModal.data.extra && (
               <div>
                 <Text type="secondary">附加信息：</Text>
-                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{credModal.data.extra}</Text>
+                <Text strong copyable className="status-cred-extra">{credModal.data.extra}</Text>
               </div>
             )}
             {credModal.data.privateKey && (
@@ -282,12 +282,12 @@ export default function StatusPage() {
                   value={credModal.data.privateKey}
                   readOnly
                   rows={6}
-                  style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
+                  className="status-cred-privatekey"
                 />
                 <Button
                   size="small"
                   icon={<DownloadOutlined />}
-                  style={{ marginTop: 6 }}
+                  className="status-cred-download"
                   onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
                 >
                   下载 .pem 文件
