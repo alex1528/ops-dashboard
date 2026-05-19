@@ -18,8 +18,8 @@ interface AuthCtx {
   logout: () => void;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  /** Check if current user can access a resource (by id and group) */
-  hasResourceAccess: (resourceId: string, group: string) => boolean;
+  /** Check if current user can access a resource (by id, group, and ownerId) */
+  hasResourceAccess: (resourceId: string, group: string, ownerId?: string | null) => boolean;
 }
 
 const AuthContext = createContext<AuthCtx>(null!);
@@ -83,11 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
   }, []);
 
-  const hasResourceAccess = useCallback((resourceId: string, group: string): boolean => {
+  const hasResourceAccess = useCallback((resourceId: string, group: string, ownerId?: string | null): boolean => {
     // Not logged in: no access
     if (!user) return false;
     // Admin: always full access
     if (user.role === 'admin') return true;
+    // Owner always has access
+    if (ownerId && ownerId === user.id) return true;
     // User with no permissions configured: no access (must be explicitly authorized)
     if (permissions.length === 0) return false;
     // Check direct resource permission

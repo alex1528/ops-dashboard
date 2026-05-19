@@ -15,6 +15,7 @@ export interface ResourceStatus {
   sortOrder: number;
   description: string;
   healthCheckEnabled: boolean;
+  ownerId?: string | null;
   hasPrivateKey?: boolean;
   sshEnabled?: boolean;
   webLoginEnabled?: boolean;

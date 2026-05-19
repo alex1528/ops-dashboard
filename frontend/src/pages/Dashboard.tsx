@@ -135,7 +135,7 @@ export default function Dashboard() {
   };
 
   const grouped = resources
-    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group))
+    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group, r.ownerId))
     .reduce<Record<string, ResourceStatus[]>>((acc, r) => {
       (acc[r.group] = acc[r.group] || []).push(r);
       return acc;

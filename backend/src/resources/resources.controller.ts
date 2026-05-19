@@ -20,8 +20,20 @@ export class ResourcesController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.resources.findAll();
+  async findAll(@Req() req: any) {
+    const all = await this.resources.findAll();
+    // Admin sees everything
+    if (req.user?.role === 'admin') return all;
+    // Regular user sees: own resources + authorized resources
+    const userId = req.user?.id;
+    const perms = await this.users.getPermissions(userId);
+    const allowedGroups = new Set(perms.filter((p) => p.type === 'group').map((p) => p.target));
+    const allowedResources = new Set(perms.filter((p) => p.type === 'resource').map((p) => p.target));
+    return all.filter((r: any) =>
+      r.ownerId === userId ||
+      allowedGroups.has(r.group) ||
+      allowedResources.has(r.id),
+    );
   }
 
   @Put('reorder/groups')
@@ -46,7 +58,7 @@ export class ResourcesController {
   @Get(':id/credential')
   async getCredential(@Param('id') id: string, @Req() req: any) {
     try {
-      // Permission check: non-admin users must have explicit access
+      // Permission check: non-admin users must own or have explicit access
       if (req.user?.role !== 'admin') {
         const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
         if (!hasAccess) throw new ForbiddenException('无权访问该资源凭据');
@@ -69,13 +81,22 @@ export class ResourcesController {
 
   @Post()
   async create(@Body() dto: CreateResourceDto, @Req() req: any) {
-    const result = await this.resources.create(dto);
+    // Regular users own their resources; admin resources have no owner
+    const ownerId = req.user?.role === 'admin' ? null : req.user?.id;
+    const result = await this.resources.create(dto, ownerId);
     await this.audit.log(req.user?.id, 'resource.create', result.id, dto.name, req.ip);
     return result;
   }
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateResourceDto, @Req() req: any) {
+    // Non-admin can only update own resources
+    if (req.user?.role !== 'admin') {
+      const resource = await this.resources.findOne(id);
+      if ((resource as any).ownerId !== req.user?.id) {
+        throw new ForbiddenException('无权修改该资源');
+      }
+    }
     const result = await this.resources.update(id, dto);
     await this.audit.log(req.user?.id, 'resource.update', id, '', req.ip);
     return result;
@@ -83,6 +104,13 @@ export class ResourcesController {
 
   @Post(':id/credential/clear')
   async clearCredential(@Param('id') id: string, @Body() dto: ClearCredentialFieldsDto, @Req() req: any) {
+    // Non-admin can only clear own resources
+    if (req.user?.role !== 'admin') {
+      const resource = await this.resources.findOne(id);
+      if ((resource as any).ownerId !== req.user?.id) {
+        throw new ForbiddenException('无权操作该资源凭据');
+      }
+    }
     const result = await this.resources.clearCredentialFields(id, dto);
     await this.audit.log(req.user?.id, 'credential.clear', id, `field=${dto.field}`, req.ip);
     return result;
@@ -90,6 +118,13 @@ export class ResourcesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req: any) {
+    // Non-admin can only delete own resources
+    if (req.user?.role !== 'admin') {
+      const resource = await this.resources.findOne(id);
+      if ((resource as any).ownerId !== req.user?.id) {
+        throw new ForbiddenException('无权删除该资源');
+      }
+    }
     await this.audit.log(req.user?.id, 'resource.delete', id, '', req.ip);
     return this.resources.remove(id);
   }

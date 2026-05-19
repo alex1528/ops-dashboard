@@ -37,6 +37,7 @@ export class HealthCheckController {
       sortOrder: r.sortOrder,
       description: r.description,
       healthCheckEnabled: r.healthCheckEnabled,
+      ownerId: r.ownerId,
       hasPrivateKey: !!(r.credential?.privateKey && r.credential.privateKey !== ''),
       sshEnabled: r.credential?.sshEnabled ?? false,
       webLoginEnabled: r.credential?.webLoginEnabled ?? false,

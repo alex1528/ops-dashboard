@@ -99,9 +99,11 @@ export class ResourcesService {
       && (parts[2] === '' || /^[0-9a-f]+$/i.test(parts[2]));
   }
 
-  async create(dto: CreateResourceDto) {
+  async create(dto: CreateResourceDto, ownerId?: string | null) {
     const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, credWebLoginEnabled, ...resourceData } = dto;
-    const resource = await this.prisma.resource.create({ data: resourceData });
+    const resource = await this.prisma.resource.create({
+      data: { ...resourceData, ownerId: ownerId ?? null },
+    });
 
     if (credUsername || credPassword || credPrivateKey || credSshEnabled || credWebLoginEnabled) {
       await this.prisma.credential.create({

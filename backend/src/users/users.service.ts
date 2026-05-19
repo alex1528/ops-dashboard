@@ -116,17 +116,19 @@ export class UsersService {
     if (!user) return false;
     // Admin always has full access
     if (user.role === 'admin') return true;
+    // Owner always has access to own resources
+    const resource = await this.prisma.resource.findUnique({
+      where: { id: resourceId },
+      select: { group: true, ownerId: true },
+    });
+    if (!resource) return false;
+    if (resource.ownerId === userId) return true;
     // Check direct resource permission
     const directPerm = await this.prisma.userPermission.findFirst({
       where: { userId, type: 'resource', target: resourceId },
     });
     if (directPerm) return true;
-    // Check group permission — need to know which group this resource belongs to
-    const resource = await this.prisma.resource.findUnique({
-      where: { id: resourceId },
-      select: { group: true },
-    });
-    if (!resource) return false;
+    // Check group permission
     const groupPerm = await this.prisma.userPermission.findFirst({
       where: { userId, type: 'group', target: resource.group },
     });

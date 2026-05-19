@@ -83,7 +83,7 @@ export default function StatusPage() {
   };
 
   const visibleResources = resources
-    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group));
+    .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group, r.ownerId));
 
   const upCount = visibleResources.filter(r => r.lastHealth?.status === 'up').length;
   const downCount = visibleResources.filter(r => r.lastHealth?.status === 'down').length;

@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import api from '../api';
+import { useAuth } from '../auth';
 
 const { Text } = Typography;
 
@@ -39,6 +40,7 @@ interface Resource {
   sortOrder: number;
   enabled: boolean;
   healthCheckEnabled: boolean;
+  ownerId?: string | null;
   credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean; webLoginEnabled?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
@@ -51,7 +53,7 @@ interface GroupData {
 
 /* ===================== Sortable Group Component ===================== */
 function SortableGroup({
-  groupData, onResourceDragEnd, onEdit, onView, onCheck, onDelete,
+  groupData, onResourceDragEnd, onEdit, onView, onCheck, onDelete, canManage, isAdmin,
 }: {
   groupData: GroupData;
   onResourceDragEnd: (group: string, oldIndex: number, newIndex: number) => void;
@@ -59,6 +61,8 @@ function SortableGroup({
   onView: (r: Resource) => void;
   onCheck: (id: string) => void;
   onDelete: (id: string) => void;
+  canManage: (r: Resource) => boolean;
+  isAdmin: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `group-${groupData.group}`,
@@ -96,11 +100,13 @@ function SortableGroup({
         size="small"
         title={
           <Space>
-            <HolderOutlined
-              {...attributes}
-              {...listeners}
-              className="resources-group-handle"
-            />
+            {isAdmin && (
+              <HolderOutlined
+                {...attributes}
+                {...listeners}
+                className="resources-group-handle"
+              />
+            )}
             <Text strong>{groupData.group === 'default' ? '未分组' : groupData.group}</Text>
             <Tag>{groupData.items.length} 项</Tag>
           </Space>
@@ -116,6 +122,7 @@ function SortableGroup({
                 onView={onView}
                 onCheck={onCheck}
                 onDelete={onDelete}
+                canManage={canManage(r)}
               />
             ))}
           </SortableContext>
@@ -127,13 +134,14 @@ function SortableGroup({
 
 /* ===================== Sortable Resource Row ===================== */
 function SortableResourceRow({
-  resource: r, onEdit, onView, onCheck, onDelete,
+  resource: r, onEdit, onView, onCheck, onDelete, canManage,
 }: {
   resource: Resource;
   onEdit: (r: Resource) => void;
   onView: (r: Resource) => void;
   onCheck: (id: string) => void;
   onDelete: (id: string) => void;
+  canManage: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: r.id });
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -164,11 +172,13 @@ function SortableResourceRow({
 
   return (
     <div ref={setRowContainerRef} className="resources-row">
-      <HolderOutlined
-        {...attributes}
-        {...listeners}
-        className="resources-row-handle"
-      />
+      {canManage && (
+        <HolderOutlined
+          {...attributes}
+          {...listeners}
+          className="resources-row-handle"
+        />
+      )}
       <div className="resources-row-main">
         <Space size="small" wrap>
           <Text strong>{r.name}</Text>
@@ -184,12 +194,14 @@ function SortableResourceRow({
         </div>
       </div>
       <Space size="small" className="resources-row-actions">
-        <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => onEdit(r)} /></Tooltip>
+        {canManage && <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => onEdit(r)} /></Tooltip>}
         <Tooltip title="查看凭据"><Button size="small" icon={<EyeOutlined />} onClick={() => onView(r)} /></Tooltip>
-        <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => onCheck(r.id)} /></Tooltip>
-        <Popconfirm title="确认删除？" onConfirm={() => onDelete(r.id)}>
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        {canManage && <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => onCheck(r.id)} /></Tooltip>}
+        {canManage && (
+          <Popconfirm title="确认删除？" onConfirm={() => onDelete(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        )}
       </Space>
     </div>
   );
@@ -198,6 +210,7 @@ function SortableResourceRow({
 /* ===================== Main Page ===================== */
 export default function ResourcesPage() {
   const { message: messageApi } = App.useApp();
+  const { user } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -227,6 +240,10 @@ export default function ResourcesPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const isAdmin = user?.role === 'admin';
+  // Admin can manage all; regular user can only manage their own resources
+  const canManage = (r: Resource) => isAdmin || r.ownerId === user?.id;
 
   // 按分组聚合，保持 groupSortOrder 排序
   const grouped: GroupData[] = useMemo(() => {
@@ -440,7 +457,7 @@ export default function ResourcesPage() {
       <div className="resources-header">
         <Typography.Title level={4} className="page-title-inline">资源管理</Typography.Title>
         <Space>
-          <Text type="secondary">拖拽 ⋮⋮ 图标可调整分组或资源顺序</Text>
+          {isAdmin && <Text type="secondary">拖拽 ⋮⋮ 图标可调整分组或资源顺序</Text>}
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增资源</Button>
         </Space>
       </div>
@@ -457,6 +474,8 @@ export default function ResourcesPage() {
                 onView={viewCredential}
                 onCheck={handleCheck}
                 onDelete={handleDelete}
+                canManage={canManage}
+                isAdmin={isAdmin}
               />
             ))}
           </SortableContext>
