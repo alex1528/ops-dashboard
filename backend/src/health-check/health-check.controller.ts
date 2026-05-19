@@ -24,6 +24,7 @@ export class HealthCheckController {
       orderBy: [{ groupSortOrder: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: {
         healthRecords: { orderBy: { checkedAt: 'desc' }, take: 1 },
+        credential: { select: { privateKey: true } },
       },
     });
 
@@ -37,6 +38,7 @@ export class HealthCheckController {
       loginMode: r.loginMode,
       description: r.description,
       healthCheckEnabled: r.healthCheckEnabled,
+      hasPrivateKey: !!(r.credential?.privateKey && r.credential.privateKey !== ''),
       lastHealth: r.healthCheckEnabled
         ? (r.healthRecords[0] || null)
         : { status: 'up', statusCode: null, responseMs: null, checkedAt: new Date().toISOString(), skipped: true },

@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { MfaModule } from './mfa/mfa.module';
 import { MailModule } from './mail/mail.module';
 import { SystemModule } from './system/system.module';
+import { SshModule } from './ssh/ssh.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SystemModule } from './system/system.module';
     MfaModule,
     MailModule,
     SystemModule,
+    SshModule,
   ],
 })
 export class AppModule {}
