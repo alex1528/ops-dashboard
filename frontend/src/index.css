@@ -82,6 +82,30 @@ body {
   border-radius: 6px;
   margin-bottom: 12px;
 }
+.dash-cred-space {
+  width: 100%;
+  margin-top: 8px;
+}
+.dash-cred-copy {
+  word-break: break-all;
+}
+.dash-cred-extra {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.dash-cred-key-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-cred-key-toggle {
+  padding: 0;
+}
+.dash-cred-privatekey {
+  font-family: monospace;
+  font-size: 12px;
+  margin-top: 4px;
+}
 
 /* ResourcesPage */
 .resources-header {

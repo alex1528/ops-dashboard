@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { App, Badge, Button, Card, Col, Input, Modal, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
-  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined, DownloadOutlined,
+  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined, EyeInvisibleOutlined, DownloadOutlined,
   CodeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -32,6 +32,7 @@ export default function Dashboard() {
     resourceName: string;
     hasPrivateKey: boolean;
   }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
   const nav = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -90,6 +91,7 @@ export default function Dashboard() {
         messageApi.info('该资源未配置凭据');
         return;
       }
+      setShowPrivateKey(false);
       setCredModal({
         open: true,
         title: `凭据信息 — ${r.name}`,
@@ -287,34 +289,47 @@ export default function Dashboard() {
         width={520}
       >
         {credModal.data && (
-          <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 8 }}>
+          <Space direction="vertical" size="middle" className="dash-cred-space">
             <div>
               <Text type="secondary">用户名：</Text>
               {credModal.data.username
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.username}</Text>
+                ? <Text strong copyable className="dash-cred-copy">{credModal.data.username}</Text>
                 : <Text type="secondary">（空）</Text>}
             </div>
             <div>
               <Text type="secondary">密码：</Text>
               {credModal.data.password
-                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{credModal.data.password}</Text>
+                ? <Text strong copyable className="dash-cred-copy">{credModal.data.password}</Text>
                 : <Text type="secondary">（空）</Text>}
             </div>
             {credModal.data.extra && (
               <div>
                 <Text type="secondary">附加信息：</Text>
-                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{credModal.data.extra}</Text>
+                <Text strong copyable className="dash-cred-extra">{credModal.data.extra}</Text>
               </div>
             )}
             {credModal.data.privateKey && (
               <div>
-                <Text type="secondary">私钥（PEM）：</Text>
-                <Input.TextArea
-                  value={credModal.data.privateKey}
-                  readOnly
-                  rows={6}
-                  style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
-                />
+                <div className="dash-cred-key-header">
+                  <Text type="secondary">私钥（PEM）：</Text>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={showPrivateKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                    onClick={() => setShowPrivateKey((v) => !v)}
+                    className="dash-cred-key-toggle"
+                  >
+                    {showPrivateKey ? '隐藏' : '显示'}
+                  </Button>
+                </div>
+                {showPrivateKey && (
+                  <Input.TextArea
+                    value={credModal.data.privateKey}
+                    readOnly
+                    rows={6}
+                    className="dash-cred-privatekey"
+                  />
+                )}
               </div>
             )}
           </Space>

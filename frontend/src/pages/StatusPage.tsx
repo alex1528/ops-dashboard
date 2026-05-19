@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, Input, Space, message, Tooltip } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, DownloadOutlined, CodeOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, EyeInvisibleOutlined, DownloadOutlined, CodeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ResourceStatus } from '../types';
 import { useAuth } from '../auth';
@@ -25,6 +25,7 @@ export default function StatusPage() {
     resourceName: string;
     hasPrivateKey: boolean;
   }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
   const { isAuthenticated } = useAuth();
 
   const load = async () => {
@@ -52,6 +53,7 @@ export default function StatusPage() {
         message.info('未配置凭据');
         return;
       }
+      setShowPrivateKey(false);
       setCredModal({
         open: true,
         title: `凭据信息 - ${name}`,
@@ -277,13 +279,26 @@ export default function StatusPage() {
             )}
             {credModal.data.privateKey && (
               <div>
-                <Text type="secondary">私钥（PEM）：</Text>
-                <Input.TextArea
-                  value={credModal.data.privateKey}
-                  readOnly
-                  rows={6}
-                  className="status-cred-privatekey"
-                />
+                <div className="dash-cred-key-header">
+                  <Text type="secondary">私钥（PEM）：</Text>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={showPrivateKey ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                    onClick={() => setShowPrivateKey((v) => !v)}
+                    className="dash-cred-key-toggle"
+                  >
+                    {showPrivateKey ? '隐藏' : '显示'}
+                  </Button>
+                </div>
+                {showPrivateKey && (
+                  <Input.TextArea
+                    value={credModal.data.privateKey}
+                    readOnly
+                    rows={6}
+                    className="status-cred-privatekey"
+                  />
+                )}
               </div>
             )}
           </Space>
