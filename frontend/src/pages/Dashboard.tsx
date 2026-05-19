@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { App, Badge, Button, Card, Col, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
+import { App, Badge, Button, Card, Col, Modal, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
-  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined,
+  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState<string | null>(null);
+  const [credLoading, setCredLoading] = useState<string | null>(null);
   const nav = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -98,6 +99,52 @@ export default function Dashboard() {
       onOk: () => window.open(r.url, '_blank', 'noopener'),
       okText: '打开登录页',
     });
+  };
+
+  /** View credential for a resource (requires login) */
+  const handleViewCredential = async (e: React.MouseEvent, r: ResourceStatus) => {
+    e.stopPropagation(); // 阻止冒泡，避免触发卡片点击（一键直达）
+    setCredLoading(r.id);
+    try {
+      const res = await api.get(`/resources/${r.id}/credential`);
+      const data = res.data;
+      if (!data || data.exists === false) {
+        messageApi.info('该资源未配置凭据');
+        return;
+      }
+      modal.info({
+        title: `凭据信息 — ${r.name}`,
+        width: 480,
+        content: (
+          <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
+            <div>
+              <Text type="secondary">用户名：</Text>
+              {data.username
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{data.username}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            <div>
+              <Text type="secondary">密码：</Text>
+              {data.password
+                ? <Text strong copyable style={{ wordBreak: 'break-all' }}>{data.password}</Text>
+                : <Text type="secondary">（空）</Text>}
+            </div>
+            {data.extra && (
+              <div>
+                <Text type="secondary">附加信息：</Text>
+                <Text strong copyable style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{data.extra}</Text>
+              </div>
+            )}
+          </Space>
+        ),
+        okText: '关闭',
+      });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || '凭据获取失败，请确认已登录';
+      messageApi.error(msg);
+    } finally {
+      setCredLoading(null);
+    }
   };
 
   const grouped = resources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
@@ -191,12 +238,26 @@ export default function Dashboard() {
                       >
                         {r.loginMode === 'auto' ? '自动登录' : r.loginMode === 'semi-auto' ? '半自动' : '外链'}
                       </Tag>
-                      <Tooltip title={r.loginMode === 'auto' ? '一键直达' : r.loginMode === 'semi-auto' ? '辅助登录' : '新标签页打开'}>
-                        {r.loginMode === 'link'
-                          ? <LinkOutlined style={{ color: '#1890ff' }} />
-                          : <LoginOutlined style={{ color: r.loginMode === 'auto' ? '#52c41a' : '#faad14' }} />
-                        }
-                      </Tooltip>
+                      <Space size={4}>
+                        {isAuthenticated && (
+                          <Tooltip title="查看凭据">
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<EyeOutlined />}
+                              loading={credLoading === r.id}
+                              onClick={(e) => handleViewCredential(e, r)}
+                              style={{ color: '#8c8c8c' }}
+                            />
+                          </Tooltip>
+                        )}
+                        <Tooltip title={r.loginMode === 'auto' ? '一键直达' : r.loginMode === 'semi-auto' ? '辅助登录' : '新标签页打开'}>
+                          {r.loginMode === 'link'
+                            ? <LinkOutlined style={{ color: '#1890ff' }} />
+                            : <LoginOutlined style={{ color: r.loginMode === 'auto' ? '#52c41a' : '#faad14' }} />
+                          }
+                        </Tooltip>
+                      </Space>
                     </div>
                   </Card>
                 </Col>
