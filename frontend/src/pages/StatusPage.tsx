@@ -284,14 +284,6 @@ export default function StatusPage() {
                   rows={6}
                   className="status-cred-privatekey"
                 />
-                <Button
-                  size="small"
-                  icon={<DownloadOutlined />}
-                  className="status-cred-download"
-                  onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
-                >
-                  下载 .pem 文件
-                </Button>
               </div>
             )}
           </Space>

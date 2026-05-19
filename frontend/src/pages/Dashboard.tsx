@@ -315,14 +315,6 @@ export default function Dashboard() {
                   rows={6}
                   style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}
                 />
-                <Button
-                  size="small"
-                  icon={<DownloadOutlined />}
-                  style={{ marginTop: 6 }}
-                  onClick={() => downloadPrivateKey(credModal.data!.privateKey, credModal.resourceName)}
-                >
-                  下载 .pem 文件
-                </Button>
               </div>
             )}
           </Space>
