@@ -161,8 +161,10 @@ function SortableResourceRow({
         <Space size="small" wrap>
           <Text strong>{r.name}</Text>
           {!r.enabled && <Tag color="default">已禁用</Tag>}
-          {r.credential?.webLoginEnabled && <Tag color="green">自动登录</Tag>}
-          {r.credential?.sshEnabled && <Tag color="cyan">SSH</Tag>}
+          {r.credential?.webLoginEnabled
+            ? <Tag color="green">自动登录</Tag>
+            : <Tag color="blue">外链</Tag>
+          }
           {statusTag()}
         </Space>
         <div>

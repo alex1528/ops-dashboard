@@ -217,15 +217,10 @@ export default function Dashboard() {
                       </Text>
                     )}
                     <div className="dashboard-card-footer">
-                      {r.webLoginEnabled && (
-                        <Tag color="green" className="dashboard-card-mode">自动登录</Tag>
-                      )}
-                      {r.sshEnabled && (
-                        <Tag color="cyan" className="dashboard-card-mode">SSH</Tag>
-                      )}
-                      {!r.webLoginEnabled && !r.sshEnabled && (
-                        <Tag color="blue" className="dashboard-card-mode">外链</Tag>
-                      )}
+                      {r.webLoginEnabled
+                        ? <Tag color="green" className="dashboard-card-mode">自动登录</Tag>
+                        : <Tag color="blue" className="dashboard-card-mode">外链</Tag>
+                      }
                       <Space size={4}>
                         {isAuthenticated && (
                           <Tooltip title="查看凭据">
