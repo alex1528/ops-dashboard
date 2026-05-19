@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, Input, Space, message } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Col, Row, Tag, Typography, Spin, Badge, Progress, Button, Modal, Input, Space, message, Tooltip } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, DownloadOutlined, CodeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ResourceStatus } from '../types';
 import { useAuth } from '../auth';
 import api from '../api';
+import SshTerminalModal from '../components/SshTerminalModal';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +19,12 @@ export default function StatusPage() {
     resourceName: string;
     data: { username: string; password: string; extra: string; privateKey: string } | null;
   }>({ open: false, title: '', resourceName: '', data: null });
+  const [sshModal, setSshModal] = useState<{
+    open: boolean;
+    resourceId: string;
+    resourceName: string;
+    hasPrivateKey: boolean;
+  }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
   const { isAuthenticated } = useAuth();
 
   const load = async () => {
@@ -188,16 +195,25 @@ export default function StatusPage() {
                       </Text>
                     )}
                     {isAuthenticated && (
-                      <div style={{ marginTop: 8, textAlign: 'right' }}>
-                        <Button
-                          type="link"
-                          size="small"
-                          icon={<EyeOutlined />}
-                          onClick={() => viewCredential(r.id, r.name)}
-                          style={{ fontSize: 12, padding: 0 }}
-                        >
-                          查看凭据
-                        </Button>
+                      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <Tooltip title="查看凭据">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={() => viewCredential(r.id, r.name)}
+                            style={{ fontSize: 12, padding: 0 }}
+                          />
+                        </Tooltip>
+                        <Tooltip title="SSH 终端">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<CodeOutlined />}
+                            onClick={() => setSshModal({ open: true, resourceId: r.id, resourceName: r.name, hasPrivateKey: !!r.hasPrivateKey })}
+                            style={{ fontSize: 12, padding: 0 }}
+                          />
+                        </Tooltip>
                       </div>
                     )}
                   </Card>
@@ -279,6 +295,15 @@ export default function StatusPage() {
           </Space>
         )}
       </Modal>
+
+      {/* SSH 终端弹窗 */}
+      <SshTerminalModal
+        open={sshModal.open}
+        resourceId={sshModal.resourceId}
+        resourceName={sshModal.resourceName}
+        hasPrivateKey={sshModal.hasPrivateKey}
+        onClose={() => setSshModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }

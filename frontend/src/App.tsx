@@ -10,6 +10,7 @@ import UsersPage from './pages/UsersPage';
 import ProfilePage from './pages/ProfilePage';
 import SmtpPage from './pages/SmtpPage';
 import AboutPage from './pages/AboutPage';
+import TerminalPage from './pages/TerminalPage';
 
 export default function App() {
   const { isAuthenticated, isInitializing, user } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/" element={<Dashboard />} />
       <Route path="/status" element={<StatusPage />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/terminal/:id" element={<TerminalPage />} />
       <Route
         path="/admin/*"
         element={isAuthenticated ? <AdminLayout /> : <Navigate to="/login" />}

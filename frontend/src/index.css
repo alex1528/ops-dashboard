@@ -216,3 +216,90 @@ body {
   width: 200px;
   height: 200px;
 }
+
+/* ===== SSH Terminal ===== */
+
+/* Modal overrides for dark terminal */
+.ssh-terminal-modal .ant-modal-content {
+  background: #0d0d1a;
+  border: 1px solid #2a2a3e;
+  padding: 0;
+}
+.ssh-terminal-modal .ant-modal-header {
+  background: #0d0d1a;
+  border-bottom: 1px solid #2a2a3e;
+  padding: 12px 16px;
+  border-radius: 8px 8px 0 0;
+}
+.ssh-terminal-modal .ant-modal-title {
+  color: #e0e0e0;
+}
+.ssh-terminal-modal .ant-modal-close {
+  color: #666;
+}
+.ssh-terminal-modal .ant-modal-close:hover {
+  color: #aaa;
+  background: rgba(255,255,255,0.05);
+}
+/* xterm.js container inside modal */
+.ssh-terminal-modal .xterm {
+  height: 100%;
+}
+.ssh-terminal-modal .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* Standalone terminal page */
+.terminal-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1a1a2e;
+  overflow: hidden;
+}
+.terminal-page-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #0d0d1a;
+  border-bottom: 1px solid #2a2a3e;
+  flex-shrink: 0;
+}
+.terminal-page-form {
+  padding: 40px;
+  flex: 1;
+  overflow-y: auto;
+}
+.terminal-page-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.terminal-page-term {
+  flex: 1;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+.terminal-page-term .xterm {
+  height: 100%;
+  padding: 8px;
+}
+
+/* Status indicator dots */
+.terminal-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.terminal-status-dot--on {
+  background: #52c41a;
+  box-shadow: 0 0 6px #52c41a;
+}
+.terminal-status-dot--off {
+  background: #ff4d4f;
+}

@@ -16,5 +16,6 @@ export interface ResourceStatus {
   loginMode: string;
   description: string;
   healthCheckEnabled: boolean;
+  hasPrivateKey?: boolean;
   lastHealth: HealthInfo | null;
 }

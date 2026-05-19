@@ -3,12 +3,14 @@ import { App, Badge, Button, Card, Col, Input, Modal, Row, Space, Spin, Tag, Too
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
   ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined, DownloadOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../api';
 import { useAuth } from '../auth';
 import type { ResourceStatus } from '../types';
+import SshTerminalModal from '../components/SshTerminalModal';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -24,6 +26,12 @@ export default function Dashboard() {
     resourceName: string;
     data: { username: string; password: string; extra: string; privateKey: string } | null;
   }>({ open: false, title: '', resourceName: '', data: null });
+  const [sshModal, setSshModal] = useState<{
+    open: boolean;
+    resourceId: string;
+    resourceName: string;
+    hasPrivateKey: boolean;
+  }>({ open: false, resourceId: '', resourceName: '', hasPrivateKey: false });
   const nav = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -149,6 +157,17 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
+  /** Open SSH terminal for a resource */
+  const handleSshConnect = (e: React.MouseEvent, r: ResourceStatus) => {
+    e.stopPropagation();
+    setSshModal({
+      open: true,
+      resourceId: r.id,
+      resourceName: r.name,
+      hasPrivateKey: !!r.hasPrivateKey,
+    });
+  };
+
   const grouped = resources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
     (acc[r.group] = acc[r.group] || []).push(r);
     return acc;
@@ -253,6 +272,17 @@ export default function Dashboard() {
                             />
                           </Tooltip>
                         )}
+                        {isAuthenticated && (
+                          <Tooltip title="SSH 终端">
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<CodeOutlined />}
+                              onClick={(e) => handleSshConnect(e, r)}
+                              style={{ color: '#8c8c8c' }}
+                            />
+                          </Tooltip>
+                        )}
                         <Tooltip title={r.loginMode === 'auto' ? '一键直达' : r.loginMode === 'semi-auto' ? '辅助登录' : '新标签页打开'}>
                           {r.loginMode === 'link'
                             ? <LinkOutlined style={{ color: '#1890ff' }} />
@@ -336,6 +366,15 @@ export default function Dashboard() {
           </Space>
         )}
       </Modal>
+
+      {/* SSH 终端弹窗 */}
+      <SshTerminalModal
+        open={sshModal.open}
+        resourceId={sshModal.resourceId}
+        resourceName={sshModal.resourceName}
+        hasPrivateKey={sshModal.hasPrivateKey}
+        onClose={() => setSshModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }
