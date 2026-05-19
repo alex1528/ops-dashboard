@@ -13,10 +13,10 @@ export interface ResourceStatus {
   group: string;
   groupSortOrder: number;
   sortOrder: number;
-  loginMode: string;
   description: string;
   healthCheckEnabled: boolean;
   hasPrivateKey?: boolean;
   sshEnabled?: boolean;
+  webLoginEnabled?: boolean;
   lastHealth: HealthInfo | null;
 }

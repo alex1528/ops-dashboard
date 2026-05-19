@@ -12,7 +12,7 @@ import { useAuth } from '../auth';
 import type { ResourceStatus } from '../types';
 import SshTerminalModal from '../components/SshTerminalModal';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function Dashboard() {
   const { message: messageApi } = App.useApp();
@@ -49,12 +49,12 @@ export default function Dashboard() {
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
 
   /**
-   * Smart launch: uses proxy auto-login for authenticated users,
-   * falls back to direct link for unauthenticated or link-mode resources.
+   * Smart launch: uses proxy auto-login for authenticated users with webLoginEnabled,
+   * falls back to direct link otherwise.
    */
   const handleLaunch = async (r: ResourceStatus) => {
-    // If not logged in or resource is link mode, just open directly
-    if (!isAuthenticated || r.loginMode === 'link') {
+    // If not logged in or resource doesn't have webLogin enabled, just open directly
+    if (!isAuthenticated || !r.webLoginEnabled) {
       window.open(r.url, '_blank', 'noopener');
       return;
     }
@@ -67,9 +67,6 @@ export default function Dashboard() {
       if (data.mode === 'auto' && data.proxyUrl) {
         // Open the proxied URL — the backend injects auth into all requests
         window.open(data.proxyUrl, '_blank', 'noopener');
-      } else if (data.mode === 'semi-auto') {
-        // Show pre-filled credentials for manual login
-        showSemiAutoModal(r, data);
       } else {
         // Fallback: open direct link
         window.open(data.targetUrl || r.url, '_blank', 'noopener');
@@ -80,39 +77,6 @@ export default function Dashboard() {
       window.open(r.url, '_blank', 'noopener');
     }
     setLaunching(null);
-  };
-
-  /** Show modal with pre-filled credentials for captcha systems */
-  const showSemiAutoModal = (r: ResourceStatus, data: any) => {
-    const prefill = data.prefill;
-    Modal.info({
-      title: `半自动登录: ${r.name}`,
-      width: 500,
-      content: (
-        <div>
-          <Paragraph>该系统需要验证码，已为您准备好登录凭据：</Paragraph>
-          {prefill && (
-            <div className="semi-auto-prefill">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <div>
-                  <Text type="secondary">用户名：</Text>
-                  <Text strong copyable>{prefill.username}</Text>
-                </div>
-                <div>
-                  <Text type="secondary">密码：</Text>
-                  <Text strong copyable>{prefill.password}</Text>
-                </div>
-              </Space>
-            </div>
-          )}
-          <Paragraph type="secondary">
-            点击确定后将打开目标系统登录页，请粘贴凭据并手动输入验证码。
-          </Paragraph>
-        </div>
-      ),
-      onOk: () => window.open(r.url, '_blank', 'noopener'),
-      okText: '打开登录页',
-    });
   };
 
   /** View credential for a resource (requires login) */
@@ -253,12 +217,15 @@ export default function Dashboard() {
                       </Text>
                     )}
                     <div className="dashboard-card-footer">
-                      <Tag
-                        color={r.loginMode === 'auto' ? 'green' : r.loginMode === 'semi-auto' ? 'orange' : 'blue'}
-                        className="dashboard-card-mode"
-                      >
-                        {r.loginMode === 'auto' ? '自动登录' : r.loginMode === 'semi-auto' ? '半自动' : '外链'}
-                      </Tag>
+                      {r.webLoginEnabled && (
+                        <Tag color="green" className="dashboard-card-mode">自动登录</Tag>
+                      )}
+                      {r.sshEnabled && (
+                        <Tag color="cyan" className="dashboard-card-mode">SSH</Tag>
+                      )}
+                      {!r.webLoginEnabled && !r.sshEnabled && (
+                        <Tag color="blue" className="dashboard-card-mode">外链</Tag>
+                      )}
                       <Space size={4}>
                         {isAuthenticated && (
                           <Tooltip title="查看凭据">
@@ -283,10 +250,10 @@ export default function Dashboard() {
                             />
                           </Tooltip>
                         )}
-                        <Tooltip title={r.loginMode === 'auto' ? '一键直达' : r.loginMode === 'semi-auto' ? '辅助登录' : '新标签页打开'}>
-                          {r.loginMode === 'link'
-                            ? <LinkOutlined style={{ color: '#1890ff' }} />
-                            : <LoginOutlined style={{ color: r.loginMode === 'auto' ? '#52c41a' : '#faad14' }} />
+                        <Tooltip title={r.webLoginEnabled ? '一键直达' : '新标签页打开'}>
+                          {r.webLoginEnabled
+                            ? <LoginOutlined style={{ color: '#52c41a' }} />
+                            : <LinkOutlined style={{ color: '#1890ff' }} />
                           }
                         </Tooltip>
                       </Space>

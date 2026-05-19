@@ -25,7 +25,6 @@ model Resource {
   url         String
   group       String   @default("default")
   groupSortOrder      Int      @default(0)
-  loginMode   String   @default("link") // link | auto | semi-auto
   description String   @default("")
   sortOrder           Int      @default(0)
   enabled             Boolean  @default(true)
@@ -45,6 +44,7 @@ model Credential {
   extra      String   @default("") // encrypted JSON for additional fields
   privateKey String   @default("") // encrypted PEM private key (Linux SSH)
   sshEnabled Boolean  @default(false) // whether Web Terminal (SSH) is enabled
+  webLoginEnabled Boolean @default(false) // whether auto-login to Web system is enabled
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

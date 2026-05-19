@@ -32,7 +32,10 @@ export class ProxyController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const resource = await this.prisma.resource.findUnique({ where: { id } });
+    const resource = await this.prisma.resource.findUnique({
+      where: { id },
+      include: { credential: true },
+    });
     if (!resource) {
       res.status(404).json({ error: 'Resource not found' });
       return;
@@ -40,19 +43,12 @@ export class ProxyController {
 
     await this.audit.log((req as any).user?.id, 'proxy.launch', id, resource.name, req.ip);
 
-    if (resource.loginMode === 'link') {
-      // External link mode — just redirect
-      res.redirect(resource.url);
-      return;
-    }
-
-    if (resource.loginMode === 'semi-auto') {
-      // Semi-auto: return pre-fill data + target URL for frontend to open in iframe/new tab
-      const prefill = await this.proxyService.getPreFillData(id);
+    // Check if web auto-login is enabled for this resource
+    if (!resource.credential?.webLoginEnabled) {
+      // Direct link mode — just open target URL
       res.json({
-        mode: 'semi-auto',
+        mode: 'link',
         targetUrl: resource.url,
-        prefill: prefill ? { username: prefill.username, password: prefill.password } : null,
       });
       return;
     }
@@ -64,7 +60,7 @@ export class ProxyController {
       res.json({
         mode: 'fallback',
         targetUrl: resource.url,
-        error: 'Auto-login failed, opening direct link',
+        error: '自动登录失败，将以直链方式打开',
       });
       return;
     }
@@ -85,26 +81,6 @@ export class ProxyController {
       proxyUrl: `/api/proxy/${id}/`,
       targetUrl: resource.url,
     });
-  }
-
-  /**
-   * GET /api/proxy/:id/prefill
-   * Returns decrypted credentials for semi-auto (captcha) mode.
-   */
-  @Get(':id/prefill')
-  @UseGuards(JwtAuthGuard)
-  async prefill(
-    @Param('id') id: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    await this.audit.log((req as any).user?.id, 'proxy.prefill', id, '', req.ip);
-    const data = await this.proxyService.getPreFillData(id);
-    if (!data) {
-      res.status(404).json({ error: 'No credentials found' });
-      return;
-    }
-    res.json(data);
   }
 
   /**

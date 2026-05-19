@@ -32,6 +32,7 @@ export class ResourcesService {
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
             sshEnabled: r.credential.sshEnabled,
+            webLoginEnabled: r.credential.webLoginEnabled,
           }
         : null,
       lastHealth: r.healthRecords[0] || null,
@@ -58,6 +59,7 @@ export class ResourcesService {
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
             sshEnabled: r.credential.sshEnabled,
+            webLoginEnabled: r.credential.webLoginEnabled,
           }
         : null,
     };
@@ -65,7 +67,7 @@ export class ResourcesService {
 
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
-    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false };
+    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false, webLoginEnabled: false };
     try {
       return {
         exists: true,
@@ -74,6 +76,7 @@ export class ResourcesService {
         extra: cred.extra ? this.decryptStoredCredential(cred.extra) : '',
         privateKey: cred.privateKey ? this.decryptStoredCredential(cred.privateKey) : '',
         sshEnabled: cred.sshEnabled,
+        webLoginEnabled: cred.webLoginEnabled,
       };
     } catch (err) {
       throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -97,10 +100,10 @@ export class ResourcesService {
   }
 
   async create(dto: CreateResourceDto) {
-    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, credWebLoginEnabled, ...resourceData } = dto;
     const resource = await this.prisma.resource.create({ data: resourceData });
 
-    if (credUsername || credPassword || credPrivateKey) {
+    if (credUsername || credPassword || credPrivateKey || credSshEnabled || credWebLoginEnabled) {
       await this.prisma.credential.create({
         data: {
           resourceId: resource.id,
@@ -109,6 +112,7 @@ export class ResourcesService {
           extra: credExtra ? this.crypto.encrypt(credExtra) : '',
           privateKey: credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '',
           sshEnabled: credSshEnabled ?? false,
+          webLoginEnabled: credWebLoginEnabled ?? false,
         },
       });
     }
@@ -119,21 +123,22 @@ export class ResourcesService {
     const existing = await this.prisma.resource.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
 
-    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
+    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, credWebLoginEnabled, ...resourceData } = dto;
     await this.prisma.resource.update({ where: { id }, data: resourceData });
 
-    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined) {
+    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined || credWebLoginEnabled !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);
       if (credExtra !== undefined) credData.extra = this.crypto.encrypt(credExtra);
       if (credPrivateKey !== undefined) credData.privateKey = credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '';
       if (credSshEnabled !== undefined) credData.sshEnabled = credSshEnabled;
+      if (credWebLoginEnabled !== undefined) credData.webLoginEnabled = credWebLoginEnabled;
 
       const existingCred = await this.prisma.credential.findUnique({ where: { resourceId: id } });
       if (existingCred) {
         await this.prisma.credential.update({ where: { resourceId: id }, data: credData });
-      } else if (credUsername || credPassword || credPrivateKey) {
+      } else if (credUsername || credPassword || credPrivateKey || credSshEnabled || credWebLoginEnabled) {
         await this.prisma.credential.create({
           data: {
             resourceId: id,
@@ -142,6 +147,7 @@ export class ResourcesService {
             extra: credData.extra ?? '',
             privateKey: credData.privateKey ?? '',
             sshEnabled: credSshEnabled ?? false,
+            webLoginEnabled: credWebLoginEnabled ?? false,
           },
         });
       }

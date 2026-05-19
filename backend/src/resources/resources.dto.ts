@@ -5,13 +5,13 @@ export class CreateResourceDto {
   @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
   @IsUrl({ require_tld: false }) @IsNotEmpty() url!: string;
   @IsString() @IsOptional() @MaxLength(50) group?: string;
-  @IsString() @IsOptional() @IsIn(['link', 'auto', 'semi-auto']) loginMode?: string;
   @IsString() @IsOptional() @MaxLength(500) description?: string;
   @IsInt() @IsOptional() sortOrder?: number;
   @IsInt() @IsOptional() groupSortOrder?: number;
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
-  // Web system login credential (encrypted before storage)
+  // Web system auto-login credential (encrypted before storage)
+  @IsBoolean() @IsOptional() credWebLoginEnabled?: boolean; // enable auto-login to Web system
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
@@ -24,20 +24,20 @@ export class UpdateResourceDto {
   @IsString() @IsOptional() @MaxLength(100) name?: string;
   @IsUrl({ require_tld: false }) @IsOptional() url?: string;
   @IsString() @IsOptional() @MaxLength(50) group?: string;
-  @IsString() @IsOptional() @IsIn(['link', 'auto', 'semi-auto']) loginMode?: string;
   @IsString() @IsOptional() @MaxLength(500) description?: string;
   @IsInt() @IsOptional() sortOrder?: number;
   @IsInt() @IsOptional() groupSortOrder?: number;
   @IsBoolean() @IsOptional() enabled?: boolean;
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
-  // Web system login credential
+  // Web system auto-login credential
+  @IsBoolean() @IsOptional() credWebLoginEnabled?: boolean;
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
   // Linux SSH credential
-  @IsBoolean() @IsOptional() credSshEnabled?: boolean; // enable Web Terminal (SSH)
-  @IsString() @IsOptional() credPrivateKey?: string; // PEM private key, no length limit
+  @IsBoolean() @IsOptional() credSshEnabled?: boolean;
+  @IsString() @IsOptional() credPrivateKey?: string;
 }
 
 // --- Reorder DTOs ---

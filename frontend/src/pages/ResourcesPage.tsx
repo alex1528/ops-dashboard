@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import {
-  App, Button, Modal, Form, Input, Select, InputNumber, Switch,
+  App, Button, Modal, Form, Input, Switch,
   Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload, Divider,
 } from 'antd';
 import {
@@ -26,6 +26,7 @@ interface CredentialDetail {
   extra: string;
   privateKey: string;
   sshEnabled: boolean;
+  webLoginEnabled: boolean;
 }
 
 interface Resource {
@@ -34,12 +35,11 @@ interface Resource {
   url: string;
   group: string;
   groupSortOrder: number;
-  loginMode: string;
   description: string;
   sortOrder: number;
   enabled: boolean;
   healthCheckEnabled: boolean;
-  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean } | null;
+  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean; webLoginEnabled?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
 
@@ -161,11 +161,9 @@ function SortableResourceRow({
         <Space size="small" wrap>
           <Text strong>{r.name}</Text>
           {!r.enabled && <Tag color="default">已禁用</Tag>}
-          <Tag color={r.loginMode === 'auto' ? 'green' : r.loginMode === 'semi-auto' ? 'orange' : 'blue'}>
-            {r.loginMode === 'auto' ? '自动' : r.loginMode === 'semi-auto' ? '半自动' : '外链'}
-          </Tag>
+          {r.credential?.webLoginEnabled && <Tag color="green">自动登录</Tag>}
+          {r.credential?.sshEnabled && <Tag color="cyan">SSH</Tag>}
           {statusTag()}
-          {r.credential?.hasPassword ? <Tag color="green">凭据已配</Tag> : null}
         </Space>
         <div>
           <Text type="secondary" style={{ fontSize: 12 }} copyable>{r.url}</Text>
@@ -197,6 +195,7 @@ export default function ResourcesPage() {
   const [credentialData, setCredentialData] = useState<CredentialDetail | null>(null);
   const [credentialResourceName, setCredentialResourceName] = useState('');
   const [sshSwitchEnabled, setSshSwitchEnabled] = useState(false);
+  const [webLoginSwitchEnabled, setWebLoginSwitchEnabled] = useState(false);
   const [form] = Form.useForm();
   const privateKeyFileRef = useRef<HTMLInputElement>(null);
 
@@ -292,7 +291,8 @@ export default function ResourcesPage() {
     setEditingId(null);
     form.resetFields();
     setSshSwitchEnabled(false);
-    form.setFieldsValue({ group: 'default', loginMode: 'link', sortOrder: 0, enabled: true, healthCheckEnabled: true, credSshEnabled: false });
+    setWebLoginSwitchEnabled(false);
+    form.setFieldsValue({ group: 'default', enabled: true, healthCheckEnabled: true, credSshEnabled: false, credWebLoginEnabled: false });
     setModalOpen(true);
   };
 
@@ -300,10 +300,11 @@ export default function ResourcesPage() {
     setEditingId(r.id);
     form.resetFields();
     setSshSwitchEnabled(false);
+    setWebLoginSwitchEnabled(false);
     const values: Record<string, any> = {
       name: r.name, url: r.url, group: r.group,
-      loginMode: r.loginMode, description: r.description,
-      sortOrder: r.sortOrder, enabled: r.enabled,
+      description: r.description,
+      enabled: r.enabled,
       healthCheckEnabled: r.healthCheckEnabled,
     };
     try {
@@ -314,7 +315,9 @@ export default function ResourcesPage() {
         values.credExtra = data.extra ?? '';
         values.credPrivateKey = data.privateKey ?? '';
         values.credSshEnabled = data.sshEnabled ?? false;
+        values.credWebLoginEnabled = data.webLoginEnabled ?? false;
         setSshSwitchEnabled(data.sshEnabled ?? false);
+        setWebLoginSwitchEnabled(data.webLoginEnabled ?? false);
       }
     } catch { /* 凭据获取失败时保持空白 */ }
     form.setFieldsValue(values);
@@ -376,7 +379,7 @@ export default function ResourcesPage() {
       const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
       if (!data || data.exists === false) {
-        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false });
+        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false, webLoginEnabled: false });
         return;
       }
       setCredentialData({
@@ -386,6 +389,7 @@ export default function ResourcesPage() {
         extra: data.extra ?? '',
         privateKey: data.privateKey ?? '',
         sshEnabled: data.sshEnabled ?? false,
+        webLoginEnabled: data.webLoginEnabled ?? false,
       });
     } catch (err: any) {
       setCredentialError(err?.response?.data?.message || '凭据获取失败');
@@ -466,18 +470,8 @@ export default function ResourcesPage() {
           <Form.Item name="group" label="分组">
             <Input placeholder="default" />
           </Form.Item>
-          <Form.Item name="loginMode" label="登录模式">
-            <Select options={[
-              { value: 'link', label: '外链直达' },
-              { value: 'auto', label: '自动登录' },
-              { value: 'semi-auto', label: '半自动（验证码）' },
-            ]} />
-          </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="sortOrder" label="排序权重" tooltip="数值越小越靠前，也可通过拖拽调整">
-            <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           {!editingId ? null : (
             <Form.Item name="enabled" label="启用" valuePropName="checked">
@@ -490,20 +484,36 @@ export default function ResourcesPage() {
           </Form.Item>
 
           <Typography.Title level={5} style={{ marginTop: 16 }}>
-            Web 系统登录凭据（加密存储）
+            自动登录 Web 系统（加密存储）
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-            用于自动登录目标 Web 系统的账号密码凭据
+            启用后，系统将自动把凭据填入目标 Web 系统的登录表单中完成登录
           </Typography.Text>
-          <Form.Item name="credUsername" label="用户名">
-            <Input placeholder="留空则不更新" autoComplete="off" />
+          <Form.Item
+            name="credWebLoginEnabled"
+            label="启用自动登录"
+            valuePropName="checked"
+            tooltip="开启后，点击卡片将自动填入用户名和密码完成登录；关闭则以外链方式直接打开目标地址"
+          >
+            <Switch
+              checkedChildren="已启用"
+              unCheckedChildren="未启用"
+              onChange={(v) => setWebLoginSwitchEnabled(v)}
+            />
           </Form.Item>
-          <Form.Item name="credPassword" label="密码">
-            <Input.Password placeholder="留空则不更新" autoComplete="new-password" />
-          </Form.Item>
-          <Form.Item name="credExtra" label="附加信息">
-            <Input.TextArea rows={2} placeholder="留空则不更新" />
-          </Form.Item>
+          {webLoginSwitchEnabled && (
+            <>
+              <Form.Item name="credUsername" label="用户名">
+                <Input placeholder="留空则不更新" autoComplete="off" />
+              </Form.Item>
+              <Form.Item name="credPassword" label="密码">
+                <Input.Password placeholder="留空则不更新" autoComplete="new-password" />
+              </Form.Item>
+              <Form.Item name="credExtra" label="附加信息">
+                <Input.TextArea rows={2} placeholder="留空则不更新" />
+              </Form.Item>
+            </>
+          )}
 
           <Typography.Title level={5} style={{ marginTop: 16 }}>
             Linux SSH 凭据（Web Terminal）
@@ -608,8 +618,16 @@ export default function ResourcesPage() {
         ) : credentialData ? (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Web 系统登录凭据
+              自动登录 Web 系统
             </Typography.Text>
+            <div>
+              <Text type="secondary">自动登录</Text>
+              <div>
+                {credentialData.webLoginEnabled
+                  ? <Tag color="green">已启用</Tag>
+                  : <Tag color="default">未启用</Tag>}
+              </div>
+            </div>
             <div>
               <Text type="secondary">用户名</Text>
               <div>{renderCredentialValue(credentialData.username)}</div>

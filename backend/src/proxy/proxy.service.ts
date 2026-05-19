@@ -21,9 +21,7 @@ export class ProxyService implements OnModuleDestroy {
 
   /** Maps loginMode values to adapter types */
   private readonly modeToAdapter: Record<string, string> = {
-    'auto': 'auto-detect',    // will try to detect
-    'semi-auto': 'semi-auto', // pre-fill only, no full auto
-    'link': 'none',           // external link, no proxy
+    'auto': 'auto-detect',
   };
 
   constructor(
@@ -79,10 +77,15 @@ export class ProxyService implements OnModuleDestroy {
       include: { credential: true },
     });
     if (!resource) return null;
-    if (resource.loginMode === 'link') return null;
+    if (!resource.credential || !resource.credential.webLoginEnabled) return null;
 
     if (!resource.credential) {
       this.logger.warn(`No credential configured for resource ${resource.name}`);
+      return null;
+    }
+
+    if (!resource.credential.webLoginEnabled) {
+      this.logger.warn(`Web login not enabled for resource ${resource.name}`);
       return null;
     }
 
@@ -98,7 +101,7 @@ export class ProxyService implements OnModuleDestroy {
     }
 
     // Determine adapter
-    const adapter = await this.detectAdapter(resource.url, resource.loginMode, extra);
+    const adapter = await this.detectAdapter(resource.url, extra);
     if (!adapter) {
       this.logger.warn(`No suitable adapter found for ${resource.name}`);
       return null;
@@ -174,7 +177,6 @@ export class ProxyService implements OnModuleDestroy {
    */
   private async detectAdapter(
     targetUrl: string,
-    loginMode: string,
     extra: string,
   ): Promise<LoginAdapter | null> {
     // Parse extra for explicit adapter type
@@ -184,11 +186,6 @@ export class ProxyService implements OnModuleDestroy {
         return this.adapters.get(config.adapterType)!;
       }
     } catch {}
-
-    if (loginMode === 'semi-auto') {
-      // Semi-auto doesn't need a full adapter; pre-fill is handled separately
-      return this.adapters.get('generic-form')!;
-    }
 
     // Auto-detect: probe the target
     const base = targetUrl.replace(/\/+$/, '');

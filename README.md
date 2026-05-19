@@ -111,7 +111,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 只读状态页：`/status` 无需登录的简易监控页面，自动刷新；已登录用户（普通用户及管理员）可在状态页查看目标资源凭据，对已启用 SSH 的资源可打开 SSH 终端；排序规则与状态看板一致
 - ✅ WebTerminal SSH：在浏览器内通过 WebSocket 直接 SSH 登录目标 Linux amd64 服务器（xterm.js + ssh2）；SSH 功能需在资源管理中为该资源单独启用（`sshEnabled=true`）；启用后有私钥凭据时自动使用私钥登录（`ssh -i key.pem root@host`），无私钥时弹出用户名/密码输入框；终端默认在全屏 Modal 中展示，支持一键新标签页打开独立终端页（`/terminal/:id`）；仅登录用户且该资源已启用 SSH 时可见 SSH 按钮，后端 WebSocket 握手验证 JWT，未授权连接自动拒绝
 - ✅ 资源管理：新增/编辑/删除目标网址及其分组；支持分组和组内资源拖拽排序（基于 @dnd-kit），拖拽结果自动持久化
-- ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，凭据分两类：**Web 系统登录凭据**（用户名/密码/附加信息，用于自动登录目标 Web 系统）和 **Linux SSH 凭据**（私钥 PEM + `sshEnabled` 开关，用于 Web Terminal SSH 登录目标服务器）；私钥默认不启用，需在编辑资源时显式开启"启用 Web Terminal (SSH)"才可上传私钥；私钥支持上传文件（.pem/.key/.txt）或直接粘贴 PEM 内容，查看时支持下载为 .pem 文件；资源管理页"查看凭据"使用页面内受控弹窗展示加载态、空态、错误态和解密后的用户名/密码/附加信息/私钥/SSH 状态（支持一键复制），避免 React 19 + Ant Design 静态弹窗失效导致"点击无反馈"；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储值；解密失败时返回明确错误提示
+- ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，凭据分两部分：**自动登录 Web 系统**（`webLoginEnabled` 开关 + 用户名/密码/附加信息，启用后自动填入目标 Web 系统的登录表单完成登录；未启用时以外链方式直接打开目标地址）和 **Linux SSH 凭据**（私钥 PEM + `sshEnabled` 开关，用于 Web Terminal SSH 登录目标服务器）；两个开关默认均不启用，需在编辑资源时显式开启；私钥支持上传文件（.pem/.key/.txt）或直接粘贴 PEM 内容，查看时支持下载为 .pem 文件；资源管理页"查看凭据"使用页面内受控弹窗展示加载态、空态、错误态和解密后的全部信息（支持一键复制），避免 React 19 + Ant Design 静态弹窗失效导致"点击无反馈"；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储值；解密失败时返回明确错误提示
 - ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
@@ -120,8 +120,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 健康检查：定时 HTTP 探测 + 手动触发，支持按资源关闭（免检默认健康）；响应时间（responseMs）仅计算实际 HTTP 往返时长，排除重试等待延迟，数据更准确
 - ✅ 移动端适配：响应式布局
 - ✅ 操作审计：凭据查看/编辑/用户管理/MFA 操作自动记录
-- ✅ 代理自动登录：PocketBase (Beszel)、Certd 适配器 + 通用表单适配器；凭据解密同样支持历史明文兼容，与资源管理模块行为一致
-- ✅ 半自动登录：验证码系统自动预填凭据 + 人工补验证码
+- ✅ 代理自动登录：PocketBase (Beszel)、Certd 适配器 + 通用表单适配器；需在资源凭据中启用 `webLoginEnabled` 开关后方可生效；凭据解密同样支持历史明文兼容，与资源管理模块行为一致
 - ✅ 反向代理网关：认证注入、HTML 重写、URL 代理重写
 - ✅ Docker 容器化：多阶段构建、docker-compose 一键部署
 - ✅ 数据库自动备份：增量热备份（仅一份） + 容器重启自动恢复 + 手动备份 API
@@ -319,7 +318,7 @@ SMTP_FROM=ops@example.com
 - **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接；终端输出使用 `utf8` 编码，正确显示中文及 ANSI 颜色序列
 - **认证**：WebSocket 握手时验证 JWT Token（从 `handshake.auth.token` 读取），未登录连接自动拒绝
 - **私钥安全**：私钥在后端解密后直接传给 `ssh2`，不经过前端传输
-- **凭据区分**：`username/password` 为 Web 系统登录凭据；`privateKey + sshEnabled` 为 Linux SSH 凭据，两者独立存储且语义不同
+- **凭据区分**：`webLoginEnabled + username/password` 为 Web 系统自动登录凭据；`privateKey + sshEnabled` 为 Linux SSH 凭据，两者独立存储且语义不同，均通过各自的启用开关控制
 - **SSH 启用控制**：`Credential.sshEnabled` 字段（默认 `false`），只有管理员显式开启后，前端才显示 SSH 按钮，后端才接受该资源的 SSH 连接请求
 - **SSH 主机**：从资源 `url` 字段解析 hostname（如 `https://ga.anytoken.cloud` → `ga.anytoken.cloud`），端口固定 22
 - **SSH 用户名**：固定 `root`（密码模式下用户可自定义）
