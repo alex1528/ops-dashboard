@@ -24,6 +24,14 @@ async function main() {
   const hash = await bcrypt.hash(password, 12);
   await prisma.adminUser.create({ data: { username, password: hash, role: 'admin' } });
   console.log(`Admin user "${username}" created.`);
+
+  // Initialize system settings
+  await prisma.systemSetting.upsert({
+    where: { key: 'allow_registration' },
+    update: {},
+    create: { key: 'allow_registration', value: 'false' },
+  });
+  console.log('System setting "allow_registration" initialized (default: false).');
 }
 
 main()

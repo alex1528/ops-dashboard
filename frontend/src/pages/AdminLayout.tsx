@@ -1,7 +1,7 @@
 import { Layout, Menu, Button, Typography, Tag } from 'antd';
 import {
   DashboardOutlined, AppstoreOutlined, LogoutOutlined,
-  TeamOutlined, UserOutlined, MailOutlined, InfoCircleOutlined,
+  TeamOutlined, UserOutlined, MailOutlined, InfoCircleOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
@@ -20,6 +20,7 @@ export default function AdminLayout() {
     { key: '/admin/resources', icon: <AppstoreOutlined />, label: '资源管理', onClick: () => nav('/admin/resources') },
     ...(isAdmin ? [
       { key: '/admin/users', icon: <TeamOutlined />, label: '用户管理', onClick: () => nav('/admin/users') },
+      { key: '/admin/settings', icon: <SettingOutlined />, label: '系统设置', onClick: () => nav('/admin/settings') },
       { key: '/admin/smtp', icon: <MailOutlined />, label: '邮件设置', onClick: () => nav('/admin/smtp') },
     ] : []),
     { key: '/admin/profile', icon: <UserOutlined />, label: '个人设置', onClick: () => nav('/admin/profile') },

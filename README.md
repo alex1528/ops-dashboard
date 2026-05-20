@@ -103,9 +103,11 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 
 ## 默认账户
 
-- 用户名: admin
-- 密码: 见 .env 中 ADMIN_PASSWORD
+- 用户名: admin（由 `.env` 中 `ADMIN_USERNAME` 指定，默认 `admin`）
+- 密码: 见 `.env` 中 `ADMIN_PASSWORD`（默认 `admin123`）
 - 角色: 管理员（admin）
+
+> **首次部署**：可通过 `npx prisma db seed` 初始化管理员，也可在"允许注册"开启时通过登录页注册首个用户自动获得管理员角色（若 `.env` 已配置 `ADMIN_USERNAME`/`ADMIN_PASSWORD`，首次注册时必须使用该预设账号）。
 
 ## 功能
 
@@ -114,7 +116,8 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ WebTerminal SSH：在浏览器内通过 WebSocket 直接 SSH 登录目标 Linux amd64 服务器（xterm.js + ssh2）；SSH 功能需在资源管理中为该资源单独启用（`sshEnabled=true`）；启用后有私钥凭据时自动使用私钥登录（`ssh -i key.pem root@host`），无私钥时弹出用户名/密码输入框；终端默认在全屏 Modal 中展示，支持一键新标签页打开独立终端页（`/terminal/:id`）；仅登录用户且该资源已启用 SSH 时可见 SSH 按钮，后端 WebSocket 握手验证 JWT，未授权连接自动拒绝
 - ✅ 资源管理：新增/编辑/删除目标网址及其分组；支持分组和组内资源拖拽排序（基于 @dnd-kit），拖拽结果自动持久化；支持资源所有权机制——管理员创建的资源（ownerId 为空）仅管理员可管理，普通用户创建的资源归属该用户（ownerId=userId），用户仅能管理自己拥有的资源；管理员可管理所有资源（含普通用户创建的）
 - ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，凭据分两部分：**自动登录 Web 系统**（`webLoginEnabled` 开关 + 用户名/密码/附加信息，启用后自动填入目标 Web 系统的登录表单完成登录；未启用时以外链方式直接打开目标地址）和 **Linux SSH 凭据**（私钥 PEM + `sshEnabled` 开关，用于 Web Terminal SSH 登录目标服务器）；两个开关默认均不启用，需在编辑资源时显式开启；私钥支持上传文件（.pem/.key/.txt）或直接粘贴 PEM 内容，查看时私钥内容默认折叠隐藏（点击「显示/隐藏」按钮切换展开），弹窗底部提供「下载私钥 (.pem)」按钮；资源管理页"查看凭据"使用页面内受控弹窗展示加载态、空态、错误态和解密后的全部信息（支持一键复制），避免 React 19 + Ant Design 静态弹窗失效导致"点击无反馈"；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储值；解密失败时返回明确错误提示
-- ✅ 用户管理：后台新增用户（不支持自注册），支持管理员/普通用户两种角色；管理员拥有全部资源的完整访问权限；普通用户需由管理员显式授权可见的资源分组或单个资源（未授权时不可见任何目标）
+- ✅ 用户管理：后台新增用户，支持管理员/普通用户两种角色；管理员拥有全部资源的完整访问权限；普通用户需由管理员显式授权可见的资源分组或单个资源（未授权时不可见任何目标）
+- ✅ 公开注册：管理员可在「系统设置」页面开启/关闭公开注册开关（默认关闭）；开启后登录页显示注册入口，新用户自行注册为普通用户角色；系统无任何用户时，第一个注册者自动成为管理员（兼容 `.env` 中 `ADMIN_USERNAME`/`ADMIN_PASSWORD` 约束）；注册成功后自动登录
 - ✅ 资源权限管理：管理员可在「用户管理」页面为普通用户配置资源访问权限，支持按分组授权（授权整个分组下全部资源）或按单个资源授权；权限采用树形多选 UI（分组→资源层级结构）；前端过滤不可见资源卡片 + 后端凭据 API / SSH WebSocket 双重权限校验，防止越权访问
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
@@ -134,10 +137,11 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | ---- | ---- | -------- |
 | `/` | 完整看板（含一键直达） | 否（查看），是（操作） |
 | `/status` | 状态监控页（查看凭据/SSH 需登录） | 否（查看状态），是（查看凭据/SSH） |
-| `/login` | 登录（支持 MFA） | - |
+| `/login` | 登录 / 注册（支持 MFA） | - |
 | `/terminal/:id` | 独立 SSH 终端页（全屏） | 是 |
 | `/admin/resources` | 资源管理 | 是 |
 | `/admin/users` | 用户管理 | 是（仅管理员） |
+| `/admin/settings` | 系统设置（注册开关等） | 是（仅管理员） |
 | `/admin/smtp` | 邮件设置 (SMTP) | 是（仅管理员） |
 | `/admin/profile` | 个人设置（MFA 绑定等） | 是 |
 | `/admin/about` | 关于系统（版本信息） | 是 |
@@ -155,6 +159,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `POST` | `/api/mfa/verify` | 验证并启用 MFA | 是 |
 | `POST` | `/api/mfa/disable` | 禁用 MFA | 是 |
 | `GET` | `/api/system/version` | 获取系统版本号 | 否 |
+| `GET` | `/api/system/settings/allow_registration` | 查询是否允许公开注册 | 否 |
+| `PUT` | `/api/system/settings/allow_registration` | 设置公开注册开关 | 是（**仅管理员**） |
+| `POST` | `/api/auth/register` | 用户公开注册 | 否（受开关控制） |
 | `GET` | `/api/mail/status` | 获取 SMTP 配置状态 | 是（管理员） |
 | `POST` | `/api/mail/send` | 发送邮件 | 是（管理员） |
 | `POST` | `/api/mail/test` | 发送测试邮件 | 是（管理员） |

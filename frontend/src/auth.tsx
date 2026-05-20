@@ -15,6 +15,7 @@ interface AuthCtx {
   user: UserInfo | null;
   permissions: UserPermission[];
   login: (username: string, password: string, mfaCode?: string) => Promise<any>;
+  register: (username: string, password: string, email?: string) => Promise<any>;
   logout: () => void;
   isAuthenticated: boolean;
   isInitializing: boolean;
@@ -76,6 +77,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res.data;
   }, []);
 
+  const register = useCallback(async (username: string, password: string, email?: string) => {
+    const res = await api.post('/auth/register', { username, password, email });
+    const t = res.data.access_token;
+    localStorage.setItem('token', t);
+    setToken(t);
+    setUser(res.data.user);
+    try {
+      const permRes = await api.get('/auth/me/permissions');
+      if (permRes.data.role !== 'admin') {
+        setPermissions(permRes.data.permissions || []);
+      } else {
+        setPermissions([]);
+      }
+    } catch { /* ignore */ }
+    return res.data;
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
@@ -100,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, permissions]);
 
   return (
-    <AuthContext.Provider value={{ token, user, permissions, login, logout, isAuthenticated: !!token, isInitializing, hasResourceAccess }}>
+    <AuthContext.Provider value={{ token, user, permissions, login, register, logout, isAuthenticated: !!token, isInitializing, hasResourceAccess }}>
       {children}
     </AuthContext.Provider>
   );

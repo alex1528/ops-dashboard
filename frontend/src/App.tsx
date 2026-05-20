@@ -9,6 +9,7 @@ import ResourcesPage from './pages/ResourcesPage';
 import UsersPage from './pages/UsersPage';
 import ProfilePage from './pages/ProfilePage';
 import SmtpPage from './pages/SmtpPage';
+import SettingsPage from './pages/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import TerminalPage from './pages/TerminalPage';
 
@@ -36,6 +37,7 @@ export default function App() {
         <Route index element={<Navigate to="resources" />} />
         <Route path="resources" element={<ResourcesPage />} />
         <Route path="users" element={user?.role === 'admin' ? <UsersPage /> : <Navigate to="/admin" />} />
+        <Route path="settings" element={user?.role === 'admin' ? <SettingsPage /> : <Navigate to="/admin" />} />
         <Route path="smtp" element={user?.role === 'admin' ? <SmtpPage /> : <Navigate to="/admin" />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="about" element={<AboutPage />} />

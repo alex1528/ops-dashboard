@@ -1,10 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { execSync, ExecSyncOptions } from 'child_process';
 import * as path from 'path';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
+import { SystemService } from './system.service';
 
 @Controller('system')
 export class SystemController {
   private cachedVersion: string | null = null;
+
+  constructor(private systemService: SystemService) {}
 
   @Get('version')
   getVersion() {
@@ -42,5 +47,21 @@ export class SystemController {
       }
     }
     return { version: this.cachedVersion };
+  }
+
+  /** Public: check if registration is allowed */
+  @Get('settings/allow_registration')
+  async getAllowRegistration() {
+    const value = await this.systemService.getSetting('allow_registration');
+    return { allowRegistration: value === 'true' };
+  }
+
+  /** Admin only: toggle registration setting */
+  @Put('settings/allow_registration')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async setAllowRegistration(@Body() body: { allowRegistration: boolean }) {
+    await this.systemService.setSetting('allow_registration', String(!!body.allowRegistration));
+    return { allowRegistration: !!body.allowRegistration };
   }
 }

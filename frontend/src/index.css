@@ -349,6 +349,13 @@ body {
   align-items: center;
   min-height: 100vh;
 }
+.login-card {
+  width: 380px;
+}
+.login-title {
+  text-align: center;
+  margin-bottom: 32px !important;
+}
 .login-text-center {
   text-align: center;
 }
@@ -385,6 +392,12 @@ body {
   padding: 12px;
   border-radius: 6px;
   margin-top: 8px;
+  font-size: 13px;
+}
+
+/* SettingsPage */
+.settings-hint {
+  margin-left: 12px;
   font-size: 13px;
 }
 

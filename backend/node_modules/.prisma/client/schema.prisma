@@ -92,3 +92,9 @@ model AuditLog {
 
   @@index([createdAt])
 }
+
+model SystemSetting {
+  key       String   @id
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+}
