@@ -1,8 +1,0 @@
-{
-  "rules": {
-    "javascript:S6958": { "level": "off" },
-    "typescript:S6958": { "level": "off" },
-    "javascript:S6848": { "level": "off" },
-    "typescript:S6848": { "level": "off" }
-  }
-}
