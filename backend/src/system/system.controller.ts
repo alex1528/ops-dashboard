@@ -27,22 +27,54 @@ export class SystemController {
           shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
           stdio: ['pipe', 'pipe', 'pipe'],
         };
+        // 优先按版本号倒序取最新的语义化 tag（与 build.sh / build.ps1 / post-commit
+        // 钩子保持一致）。这样可避免 `git describe` 在多分支/sibling tag 场景下选到
         try {
-          const tag = execSync('git describe --tags --abbrev=0', execOpts)
+          const tags = execSync(
+            'git tag -l "v[0-9]*.[0-9]*.[0-9]*" --sort=-version:refname',
+            execOpts,
+          )
             .toString()
             .trim();
-          this.cachedVersion = tag || 'dev';
+          const latest = tags.split('\n')[0]?.trim();
+          if (latest) {
+            this.cachedVersion = latest;
+          }
         } catch {
-          // 若 git describe 失败，尝试通过 git tag 获取最新标签
+          // 忽略，进入下一级回退
+        }
+
+        // 回退 1：git describe（最近可达 tag）
+        if (!this.cachedVersion) {
+          try {
+            const tag = execSync('git describe --tags --abbrev=0', execOpts)
+              .toString()
+              .trim();
+            if (tag) {
+              this.cachedVersion = tag;
+            }
+          } catch {
+            // 忽略，进入下一级回退
+          }
+        }
+
+        // 回退 2：放宽版本格式过滤，仍按语义化版本排序
+        if (!this.cachedVersion) {
           try {
             const tags = execSync('git tag --sort=-v:refname', execOpts)
               .toString()
               .trim();
             const latest = tags.split('\n')[0]?.trim();
-            this.cachedVersion = latest || 'dev';
+            if (latest) {
+              this.cachedVersion = latest;
+            }
           } catch {
-            this.cachedVersion = 'dev';
+            // 忽略
           }
+        }
+
+        if (!this.cachedVersion) {
+          this.cachedVersion = 'dev';
         }
       }
     }

@@ -377,6 +377,6 @@ SMTP_FROM=ops@example.com
 
 版本号获取优先级：
 
-1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入，使用 [build.sh](build.sh) / [build.ps1](build.ps1) 脚本可自动获取 git tag
-2. **本地开发**：运行时自动读取 `git describe --tags --abbrev=0`（使用 `shell: true` + 仓库根目录 `cwd` 确保 Windows/macOS/Linux 兼容），若失败则通过 `git tag --sort=-v:refname` 获取最新标签
+1. **Docker 部署**：构建时通过 `APP_VERSION` 参数注入，使用 [build.sh](build.sh) / [build.ps1](build.ps1) 脚本可自动获取最新的语义化 tag（按版本号倒序，非 `git describe` 的可达性）
+2. **本地开发**：运行时优先 `git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname`（与构建脚本、`post-commit` 钩子一致，避免在多分支/sibling tag 下漏掉最新版本），失败则回退到 `git describe --tags --abbrev=0`，再回退到 `git tag --sort=-v:refname`
 3. **回退值**：以上均不可用时显示 `dev`，关于页面标注"(本地开发模式)"
