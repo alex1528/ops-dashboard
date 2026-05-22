@@ -130,6 +130,8 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 反向代理网关：认证注入、HTML 重写、URL 代理重写
 - ✅ Docker 容器化：多阶段构建、docker-compose 一键部署
 - ✅ 数据库自动备份：增量热备份（仅一份） + 容器重启自动恢复 + 手动备份 API
+- ✅ 状态看板资源卡片 URL 一键复制：每张资源卡片底部新增独立的复制图标按钮，未登录用户也可使用；优先调用 `navigator.clipboard.writeText`，在非安全上下文或旧版浏览器自动降级 `document.execCommand('copy')`；点击事件不会冒泡触发卡片打开；按钮支持键盘 Enter/Space 触发；失败时通过 `messageApi.error` 提示并向控制台输出可定位日志
+- ✅ 用户首次登录强制修改密码：管理员创建/重置密码后用户首次登录必须先修改密码方可访问业务接口；新增字段 `AdminUser.mustChangePassword`（是否处于强制改密状态）与 `AdminUser.passwordChangedAt`（最近一次改密时间）；后端 Force_Change_Guard（`ForceChangePasswordGuard`）作为全局守卫拦截除 `/auth/me`、`/auth/me/permissions`、`/auth/change-password`、`/auth/logout` 之外的所有受保护路由（响应 `403 { code: 'MUST_CHANGE_PASSWORD' }`）；前端 Force_Change_Page（`/force-change-password`）提供原密码/新密码/确认新密码三字段表单，强度策略要求长度 ≥ 8 且同时包含字母与数字；前端 `<ForceChangeRouteGuard>` 在路由层强制重定向至改密页；初始管理员（seed）与自助注册用户的 `mustChangePassword` 默认为 `false`，不会被误强制
 
 ## 页面路由
 
@@ -139,6 +141,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `/status` | 状态监控页（查看凭据/SSH 需登录） | 否（查看状态），是（查看凭据/SSH） |
 | `/login` | 登录 / 注册（支持 MFA） | - |
 | `/terminal/:id` | 独立 SSH 终端页（全屏） | 是 |
+| `/force-change-password` | 首次登录强制修改密码页 | 是 |
 | `/admin/resources` | 资源管理 | 是 |
 | `/admin/users` | 用户管理 | 是（仅管理员） |
 | `/admin/settings` | 系统设置（注册开关等） | 是（仅管理员） |
@@ -162,6 +165,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `GET` | `/api/system/settings/allow_registration` | 查询是否允许公开注册 | 否 |
 | `PUT` | `/api/system/settings/allow_registration` | 设置公开注册开关 | 是（**仅管理员**） |
 | `POST` | `/api/auth/register` | 用户公开注册 | 否（受开关控制） |
+| `POST` | `/api/auth/change-password` | 修改当前用户密码（成功后清除 `mustChangePassword` 标志） | 是 |
 | `GET` | `/api/mail/status` | 获取 SMTP 配置状态 | 是（管理员） |
 | `POST` | `/api/mail/send` | 发送邮件 | 是（管理员） |
 | `POST` | `/api/mail/test` | 发送测试邮件 | 是（管理员） |
@@ -277,6 +281,23 @@ docker compose down
 docker volume rm ops-dashboard_db-data       # 清空数据卷
 docker compose up -d                         # 重启时自动从 backup/ 恢复
 ```
+
+## 升级注意事项
+
+### 数据库迁移
+
+升级到包含「首次登录强制修改密码」特性的版本后，需要执行 Prisma migration 才能使用新字段：
+
+- **Docker 部署**：容器启动时 `docker-entrypoint.sh` 会自动执行 `npx prisma migrate deploy`，无需手动操作
+- **本地开发**：在 `backend/` 目录下执行 `npx prisma migrate deploy`
+
+### 字段默认值与历史数据兼容
+
+- 新增字段 `AdminUser.mustChangePassword`（默认 `true`）和 `AdminUser.passwordChangedAt`（默认 `NULL`）
+- **存量用户**：迁移会将所有已存在的 `AdminUser` 行的 `mustChangePassword` 显式回填为 `false`，避免老用户在升级后被意外强制改密
+- **初始管理员**（通过 `prisma db seed` 或 `docker-entrypoint.sh` 创建）：`mustChangePassword` 显式设为 `false`，避免容器首启即陷入「无人能登录改密」的循环
+- **公开注册用户**：通过 `/api/auth/register` 自助注册的用户 `mustChangePassword` 显式设为 `false`，避免被误强制改密
+- **管理员后台创建/重置密码**：`UsersService.create` 与 `UsersService.update`（携带 `password` 字段时）会将目标用户的 `mustChangePassword` 翻转为 `true`，触发首次登录强制改密流程
 
 ## 用户管理
 

@@ -8,6 +8,7 @@ interface UserInfo {
   role: string;
   email: string;
   mfaEnabled: boolean;
+  mustChangePassword: boolean;
 }
 
 interface AuthCtx {
@@ -21,6 +22,8 @@ interface AuthCtx {
   isInitializing: boolean;
   /** Check if current user can access a resource (by id, group, and ownerId) */
   hasResourceAccess: (resourceId: string, group: string, ownerId?: string | null) => boolean;
+  /** 改密成功后清除本地 mustChangePassword 标志，避免再次请求 /auth/me */
+  markPasswordChanged: () => void;
 }
 
 const AuthContext = createContext<AuthCtx>(null!);
@@ -101,6 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
   }, []);
 
+  const markPasswordChanged = useCallback(() => {
+    setUser((u) => (u ? { ...u, mustChangePassword: false } : u));
+  }, []);
+
   const hasResourceAccess = useCallback((resourceId: string, group: string, ownerId?: string | null): boolean => {
     // Not logged in: no access
     if (!user) return false;
@@ -118,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, permissions]);
 
   return (
-    <AuthContext.Provider value={{ token, user, permissions, login, register, logout, isAuthenticated: !!token, isInitializing, hasResourceAccess }}>
+    <AuthContext.Provider value={{ token, user, permissions, login, register, logout, isAuthenticated: !!token, isInitializing, hasResourceAccess, markPasswordChanged }}>
       {children}
     </AuthContext.Provider>
   );

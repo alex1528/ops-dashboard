@@ -37,7 +37,9 @@ export class UsersController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: any) {
     const result = await this.users.update(id, dto);
-    await this.audit.log(req.user?.id, 'user.update', id, '', req.ip);
+    // 区分审计动作：携带 password 视为重置密码，记录 user.reset_password
+    const action = dto.password ? 'user.reset_password' : 'user.update';
+    await this.audit.log(req.user?.id, action, id, '', req.ip);
     return result;
   }
 

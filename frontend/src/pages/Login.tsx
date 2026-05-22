@@ -32,7 +32,11 @@ export default function Login() {
         messageApi.info('请输入 MFA 验证码');
       } else {
         messageApi.success('登录成功');
-        nav('/admin');
+        if (result?.user?.mustChangePassword) {
+          nav('/force-change-password');
+        } else {
+          nav('/admin');
+        }
       }
     } catch {
       messageApi.error('用户名或密码错误');
@@ -49,7 +53,11 @@ export default function Login() {
         messageApi.error('MFA 验证码错误');
       } else {
         messageApi.success('登录成功');
-        nav('/admin');
+        if (result?.user?.mustChangePassword) {
+          nav('/force-change-password');
+        } else {
+          nav('/admin');
+        }
       }
     } catch (err: any) {
       messageApi.error(err?.response?.data?.message || 'MFA 验证失败');

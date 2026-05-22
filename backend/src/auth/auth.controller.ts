@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, UseGuards, Req, ForbiddenException, Confli
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { ChangePasswordDto } from './change-password.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemService } from '../system/system.service';
 import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength } from 'class-validator';
@@ -68,11 +69,33 @@ export class AuthController {
 
     const hash = await bcrypt.hash(dto.password, 12);
     await this.prisma.adminUser.create({
-      data: { username: dto.username, password: hash, email: dto.email || '', role },
+      data: {
+        username: dto.username,
+        password: hash,
+        email: dto.email || '',
+        role,
+        // 自助注册的用户由用户本人输入密码，无需被强制改密
+        mustChangePassword: false,
+      },
     });
 
     // Auto-login after registration
     return this.auth.login(dto.username, dto.password);
+  }
+
+  /**
+   * 修改当前登录用户密码。
+   *
+   * 仅校验 JWT 后即可访问；该路由位于 `ForceChangePasswordGuard` 白名单中，
+   * 因此处于 `mustChangePassword=true` 状态的用户也能调用此接口完成首次改密。
+   * 业务校验、审计与字段更新统一委托 `AuthService.changePassword`，
+   * 控制器只负责注入 `userId` 与请求 IP。
+   */
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(@Body() dto: ChangePasswordDto, @Req() req: Request) {
+    const u = (req as any).user;
+    return this.auth.changePassword(u.id, dto, req.ip ?? '');
   }
 
   /** Used by the frontend to verify a stored token is still valid */
@@ -88,6 +111,7 @@ export class AuthController {
       role: user.role,
       email: user.email,
       mfaEnabled: user.mfaEnabled,
+      mustChangePassword: user.mustChangePassword,
     };
   }
 

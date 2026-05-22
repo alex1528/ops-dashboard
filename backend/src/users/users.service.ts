@@ -46,6 +46,8 @@ export class UsersService {
         password: hash,
         email: dto.email || '',
         role: dto.role || 'user',
+        // 管理员后台创建的新用户必须首次登录强制修改密码
+        mustChangePassword: true,
       },
     });
     return this.findOne(user.id);
@@ -55,7 +57,11 @@ export class UsersService {
     const existing = await this.prisma.adminUser.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
     const data: any = {};
-    if (dto.password) data.password = await bcrypt.hash(dto.password, 12);
+    if (dto.password) {
+      data.password = await bcrypt.hash(dto.password, 12);
+      // 管理员重置密码后，要求用户下次登录强制改密
+      data.mustChangePassword = true;
+    }
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.role !== undefined) data.role = dto.role;
     // Admin can force-disable MFA for a user

@@ -6,6 +6,7 @@ import type { ResourceStatus } from '../types';
 import { useAuth } from '../auth';
 import api from '../api';
 import SshTerminalModal from '../components/SshTerminalModal';
+import CopyButton from '../components/CopyButton';
 
 const { Title, Text } = Typography;
 
@@ -201,6 +202,7 @@ export default function StatusPage() {
                     )}
                     {isAuthenticated && (
                       <div className="status-actions">
+                        <CopyButton text={r.url} />
                         <Tooltip title="查看凭据">
                           <Button
                             type="link"
@@ -221,6 +223,11 @@ export default function StatusPage() {
                             />
                           </Tooltip>
                         )}
+                      </div>
+                    )}
+                    {!isAuthenticated && (
+                      <div className="status-actions">
+                        <CopyButton text={r.url} />
                       </div>
                     )}
                   </Card>

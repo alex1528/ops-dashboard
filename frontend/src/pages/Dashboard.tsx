@@ -11,6 +11,7 @@ import api from '../api';
 import { useAuth } from '../auth';
 import type { ResourceStatus } from '../types';
 import SshTerminalModal from '../components/SshTerminalModal';
+import CopyButton from '../components/CopyButton';
 
 const { Title, Text } = Typography;
 
@@ -226,6 +227,7 @@ export default function Dashboard() {
                         : <Tag color="blue" className="dashboard-card-mode">外链</Tag>
                       }
                       <Space size={4}>
+                        <CopyButton text={r.url} />
                         {isAuthenticated && (
                           <Tooltip title="查看凭据">
                             <Button
