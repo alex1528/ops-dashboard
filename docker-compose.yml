@@ -11,11 +11,13 @@ services:
       - DATABASE_URL=file:/app/data/ops-dashboard.db
       # 必填项：未在仓库根目录 .env 中设置时，Compose 自身会以非零退出并给出
       # `${VAR:?...}` 的错误说明，避免容器静默地以空值启动后再被 Nest 抛错中断。
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET 必须在仓库根目录 .env 中配置（建议: openssl rand -base64 48）}
+      # 注：整条 entry 用双引号包裹，避免 ${...} 的错误信息中出现 ": "（冒号 + 空格）
+      # 被 YAML 解析器误认为映射分隔符，触发 `unexpected type map[string]interface {}`。
+      - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET 必须在仓库根目录 .env 中配置，建议使用 openssl rand -base64 48 生成}"
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
-      - MASTER_KEY=${MASTER_KEY:?MASTER_KEY 必须在仓库根目录 .env 中配置 64 位 hex（生成: openssl rand -hex 32）}
+      - "MASTER_KEY=${MASTER_KEY:?MASTER_KEY 必须在仓库根目录 .env 中配置 64 位 hex 字符串，使用 openssl rand -hex 32 生成}"
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD 必须在仓库根目录 .env 中配置}
+      - "ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD 必须在仓库根目录 .env 中配置}"
       - HEALTH_CHECK_INTERVAL_MS=${HEALTH_CHECK_INTERVAL_MS:-60000}
       - HEALTH_CHECK_TIMEOUT_MS=${HEALTH_CHECK_TIMEOUT_MS:-10000}
       - PORT=6000

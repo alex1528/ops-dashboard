@@ -326,6 +326,7 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 2. `docker-entrypoint.sh` 在 `prisma migrate deploy` 之前再做一次 shell 层校验，输出可定位的中文错误并 `exit 1`；
 3. `CryptoService` 把诊断拆分为「未设置 / 占位符 / 长度错 / 含非 hex」四类中文错误，便于排查。
 
+> 注：`docker-compose.yml` 中带 `${VAR:?中文消息}` 的 environment 条目必须用双引号整体包裹（如 `"MASTER_KEY=${MASTER_KEY:?...}"`），否则消息中的中文标点（如 `: `）会被 YAML 解析为映射分隔符，触发 `services.ops-dashboard.environment.[N]: unexpected type map[string]interface {}`。
 > 任何错误信息都只引用变量名，不会回显 `MASTER_KEY` / `JWT_SECRET` / `ADMIN_PASSWORD` 的真实值。
 
 ## 用户管理
