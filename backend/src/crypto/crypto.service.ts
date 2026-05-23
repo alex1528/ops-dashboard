@@ -8,8 +8,31 @@ export class CryptoService {
 
   constructor() {
     const hex = process.env.MASTER_KEY;
-    if (!hex || hex.length !== 64 || hex.includes('CHANGE_ME')) {
-      throw new Error('MASTER_KEY must be a 64-char hex string. Generate with: openssl rand -hex 32');
+    // 详细分级诊断，帮助定位最常见的部署失误。错误信息只引用变量名，
+    // 不会回显密钥本身（即便它被错填）。
+    if (!hex) {
+      throw new Error(
+        'MASTER_KEY 未设置。Docker Compose 部署请在仓库根目录 .env 中配置；' +
+          '本地开发请在 backend/.env 中配置。生成方法：openssl rand -hex 32',
+      );
+    }
+    if (hex.includes('CHANGE_ME')) {
+      throw new Error(
+        'MASTER_KEY 仍为占位符（包含 CHANGE_ME），请替换为真实的 64 位 hex。' +
+          '生成方法：openssl rand -hex 32',
+      );
+    }
+    if (hex.length !== 64) {
+      throw new Error(
+        `MASTER_KEY 长度应为 64 位 hex（当前长度 ${hex.length}）。` +
+          '生成方法：openssl rand -hex 32',
+      );
+    }
+    if (!/^[0-9a-fA-F]+$/.test(hex)) {
+      throw new Error(
+        'MASTER_KEY 必须是 64 位 hex 字符串（仅允许 0-9 / a-f）。' +
+          '生成方法：openssl rand -hex 32',
+      );
     }
     this.key = Buffer.from(hex, 'hex');
   }

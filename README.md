@@ -15,10 +15,18 @@
 ### 1. 配置环境变量
 
 ```bash
+# Docker 部署：必须在仓库根目录（与 docker-compose.yml 同级）创建 .env
 cp .env.example .env
 # 必填：修改 JWT_SECRET、MASTER_KEY、ADMIN_PASSWORD
 # 可选：配置 SMTP_HOST 等邮件通知字段
 ```
+
+> **重要**：本仓库存在两份 `.env`，承担不同角色，**不要混用**：
+>
+> - 仓库根目录 `.env`（与 `docker-compose.yml` 同级）—— 仅供 Docker Compose 读取并注入到容器环境变量。
+> - `backend/.env` —— 仅供本地 `npm run start:dev` / `prisma migrate dev` 等开发命令使用，**不会**被 Docker Compose 读取。
+>
+> Docker 部署如果缺少根目录 `.env`，`docker compose up` 会因为 `JWT_SECRET` / `MASTER_KEY` / `ADMIN_PASSWORD` 缺失而**直接拒绝启动**（`docker-compose.yml` 中以 `${VAR:?...}` 强校验，给出明确中文报错），避免容器以空配置静默启动后陷入 `MASTER_KEY must be a 64-char hex string` 之类的崩溃循环。
 
 生成密钥:
 
@@ -298,6 +306,27 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 - **初始管理员**（通过 `prisma db seed` 或 `docker-entrypoint.sh` 创建）：`mustChangePassword` 显式设为 `false`，避免容器首启即陷入「无人能登录改密」的循环
 - **公开注册用户**：通过 `/api/auth/register` 自助注册的用户 `mustChangePassword` 显式设为 `false`，避免被误强制改密
 - **管理员后台创建/重置密码**：`UsersService.create` 与 `UsersService.update`（携带 `password` 字段时）会将目标用户的 `mustChangePassword` 翻转为 `true`，触发首次登录强制改密流程
+
+## 故障排查
+
+### `MASTER_KEY must be a 64-char hex string`（容器启动失败）
+
+容器在加载 `CryptoService` 时检测到 `MASTER_KEY` 缺失或不符合「64 位 hex」格式即拒绝启动，常见根因如下：
+
+| 根因 | 表现 | 处理 |
+| --- | --- | --- |
+| 仓库根目录缺少 `.env` | Compose 把空字符串注入到容器，Nest 在加载 `CryptoService` 时抛错 | 在仓库根目录复制 `cp .env.example .env`，并填入真实的 `MASTER_KEY` 等必填项 |
+| 误将变量写到 `backend/.env` | `backend/.env` 仅供本地 `npm run start:dev` 使用，不会被 Docker Compose 读取 | 把必填项同步到仓库根目录 `.env` |
+| `MASTER_KEY` 仍为占位符（含 `CHANGE_ME`） | Nest 抛错「仍为占位符」 | 用 `openssl rand -hex 32` 重新生成 |
+| `MASTER_KEY` 长度不是 64 / 含非 hex 字符 | Nest 抛错「长度应为 64 位 hex」或「必须是 64 位 hex 字符串」 | 重新生成；该值的语义是 32 字节 = 64 位十六进制字符（`0-9 / a-f`） |
+
+为减少此类失误，本项目从此版本起做了三层防护：
+
+1. `docker-compose.yml` 对 `JWT_SECRET` / `MASTER_KEY` / `ADMIN_PASSWORD` 使用 `${VAR:?...}` 强校验，缺失时 Compose 自身会以非零退出，给出中文报错；
+2. `docker-entrypoint.sh` 在 `prisma migrate deploy` 之前再做一次 shell 层校验，输出可定位的中文错误并 `exit 1`；
+3. `CryptoService` 把诊断拆分为「未设置 / 占位符 / 长度错 / 含非 hex」四类中文错误，便于排查。
+
+> 任何错误信息都只引用变量名，不会回显 `MASTER_KEY` / `JWT_SECRET` / `ADMIN_PASSWORD` 的真实值。
 
 ## 用户管理
 
