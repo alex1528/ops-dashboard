@@ -4,6 +4,31 @@ body {
   background: #f0f2f5;
 }
 
+/* ===== 响应式设计基础 =====
+   - HTML 已设置 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   - AntD `<Sider breakpoint="lg" collapsedWidth={0}>` 在屏宽 < 992px 时自动收起侧边栏
+   - 表格使用 `scroll={{ x: 'max-content' }}` 在窄屏下水平滚动
+   - 弹窗宽度统一使用 .responsive-modal 类，实际宽度 = min(<width prop>, 92vw)
+*/
+
+/* ===== Modal 通用响应式：保证在小屏不溢出 ===== */
+.ant-modal {
+  /* 限制 Modal 容器最大宽度，避免在 320~480px 设备上水平溢出 */
+  max-width: calc(100vw - 16px);
+}
+.ant-modal .ant-modal-content {
+  /* iPhone SE 等小屏避免左右贴边 */
+  word-break: break-word;
+}
+@media (max-width: 480px) {
+  .ant-modal {
+    margin: 8px auto;
+  }
+  .ant-modal .ant-modal-body {
+    padding: 16px;
+  }
+}
+
 /* App loading spinner */
 .app-loading {
   display: flex;
@@ -23,6 +48,16 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 16px 12px;
+  }
+  .dashboard-header {
+    margin-bottom: 16px;
+  }
 }
 .dashboard-group {
   margin-bottom: 24px;
@@ -348,9 +383,12 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  padding: 16px;
+  box-sizing: border-box;
 }
 .login-card {
   width: 380px;
+  max-width: 100%;
 }
 .login-title {
   text-align: center;
@@ -367,6 +405,53 @@ body {
   font-size: 16px;
   font-weight: 600;
   text-align: center;
+}
+
+/* Admin layout header & content — 响应式 padding/margin */
+.admin-header {
+  background: #fff;
+  padding: 0 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.admin-header-user {
+  display: inline-flex;
+  align-items: center;
+}
+.admin-header-username {
+  /* 移动端用户名过长时省略 */
+  max-width: 30vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+.admin-header-role-tag {
+  margin-left: 8px;
+}
+.admin-content {
+  margin: 24px;
+}
+@media (max-width: 768px) {
+  .admin-header {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .admin-content {
+    margin: 12px;
+  }
+}
+@media (max-width: 480px) {
+  .admin-header {
+    padding: 0 8px;
+  }
+  .admin-content {
+    margin: 8px;
+  }
 }
 
 /* Page container wrappers */

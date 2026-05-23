@@ -40,18 +40,18 @@ export default function AdminLayout() {
         />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+        <Header className="admin-header">
           {user && (
-            <Typography.Text type="secondary">
-              {user.username}
-              <Tag color={user.role === 'admin' ? 'red' : 'blue'} style={{ marginLeft: 8 }}>
+            <Typography.Text type="secondary" className="admin-header-user">
+              <span className="admin-header-username">{user.username}</span>
+              <Tag color={user.role === 'admin' ? 'red' : 'blue'} className="admin-header-role-tag">
                 {user.role === 'admin' ? '管理员' : '用户'}
               </Tag>
             </Typography.Text>
           )}
           <Button icon={<LogoutOutlined />} onClick={() => { logout(); nav('/login'); }}>退出</Button>
         </Header>
-        <Content style={{ margin: 24 }}>
+        <Content className="admin-content">
           <Outlet />
         </Content>
       </Layout>

@@ -254,6 +254,7 @@ export default function UsersPage() {
         rowKey="id"
         loading={loading}
         pagination={false}
+        scroll={{ x: 'max-content' }}
       />
 
       <Modal

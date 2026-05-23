@@ -208,3 +208,25 @@ api.interceptors.response.use(
 - 拦截语义：`{ code: 'MUST_CHANGE_PASSWORD', message: '请先修改初始密码' }` HTTP 403。
 
 如需进一步了解后端字段流转、守卫白名单与审计动作，可参考 `backend/README.md` 中「首次登录强制修改密码」一节。
+
+## 资源卡片点击行为
+
+为避免在状态看板留白处误点击触发跳转，**资源卡片整体不绑定 onClick / hoverable**：所有跳转、复制、查看凭据、SSH 终端等操作都通过底部独立的图标按钮显式触发，按钮内部统一调用 `e.stopPropagation()` + `e.preventDefault()` 阻止事件冒泡，互不干扰。
+
+| 按钮 | 图标 | 行为 |
+| --- | --- | --- |
+| 复制链接 | `<CopyOutlined />` | 把 `resource.url` 写入剪贴板，未登录用户也可使用 |
+| 查看凭据 | `<EyeOutlined />` | 已登录用户拉取并展示加密凭据 |
+| SSH 终端 | `<CodeOutlined />` | 已登录且资源 `sshEnabled` 时，打开浏览器内 SSH 终端 |
+| 打开链接 / 一键直达 | `<LinkOutlined />` 或 `<LoginOutlined />` | 显式触发 `handleLaunch(r)`：`webLoginEnabled=true` 走 `/proxy/:id/launch` 自动登录，否则在新标签页打开原始 URL |
+
+## 响应式设计
+
+- 已设置 `<meta name="viewport" content="width=device-width, initial-scale=1.0" />`
+- 卡片网格使用 AntD 栅格断点 `<Col xs={24} sm={12} md={8} lg={6} />`：360px 单列、≥576px 双列、≥768px 三列、≥992px 四列
+- 后台 `<Sider breakpoint="lg" collapsedWidth={0}>`：屏宽 < 992px 时侧边栏自动收起为汉堡菜单
+- 后台 Header / Content 内边距随断点收紧（768px → 12px，480px → 8px），登录卡片与强制改密卡片在窄屏上以 `max-width: 100%` + `padding: 16px` 自适应
+- 全局 `.ant-modal { max-width: calc(100vw - 16px); }` 与 480px 媒体查询：所有 AntD 弹窗在小屏不再水平溢出
+- `UsersPage` 等表格使用 `scroll={{ x: 'max-content' }}` 在窄屏下水平滚动，不挤压列宽
+
+如需新增页面或组件，请遵循以上断点策略，并在 `index.css` 中按 768px / 480px 两档收紧 padding/margin/字体即可。

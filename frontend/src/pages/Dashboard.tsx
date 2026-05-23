@@ -53,6 +53,9 @@ export default function Dashboard() {
   /**
    * Smart launch: uses proxy auto-login for authenticated users with webLoginEnabled,
    * falls back to direct link otherwise.
+   *
+   * 仅由资源卡片底部的「打开链接」按钮显式触发；不再绑定到 Card 整体的点击事件，
+   * 避免误点击卡片留白区域时意外打开目标页面。
    */
   const handleLaunch = async (r: ResourceStatus) => {
     // If not logged in or resource doesn't have webLogin enabled, just open directly
@@ -79,6 +82,13 @@ export default function Dashboard() {
       window.open(r.url, '_blank', 'noopener');
     }
     setLaunching(null);
+  };
+
+  /** 显式的「打开链接」按钮点击处理：阻止冒泡，避免影响卡片其它交互 */
+  const handleLaunchClick = (e: React.MouseEvent, r: ResourceStatus) => {
+    e.stopPropagation();
+    e.preventDefault();
+    void handleLaunch(r);
   };
 
   /** View credential for a resource (requires login) */
@@ -182,9 +192,7 @@ export default function Dashboard() {
               {items.map((r) => (
                 <Col key={r.id} xs={24} sm={12} md={8} lg={6}>
                   <Card
-                    hoverable
                     loading={launching === r.id}
-                    onClick={() => handleLaunch(r)}
                     styles={{ body: { padding: 16 } }}
                   >
                     <div className="dashboard-card-top">
@@ -251,11 +259,16 @@ export default function Dashboard() {
                             />
                           </Tooltip>
                         )}
-                        <Tooltip title={r.webLoginEnabled ? '一键直达' : '新标签页打开'}>
-                          {r.webLoginEnabled
-                            ? <LoginOutlined style={{ color: '#52c41a' }} />
-                            : <LinkOutlined style={{ color: '#1890ff' }} />
-                          }
+                        <Tooltip title={r.webLoginEnabled ? '一键直达（自动登录）' : '在新标签页打开'}>
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={r.webLoginEnabled
+                              ? <LoginOutlined style={{ color: '#52c41a' }} />
+                              : <LinkOutlined style={{ color: '#1890ff' }} />}
+                            aria-label={r.webLoginEnabled ? '一键直达' : '在新标签页打开'}
+                            onClick={(e) => handleLaunchClick(e, r)}
+                          />
                         </Tooltip>
                       </Space>
                     </div>
