@@ -139,6 +139,18 @@ SKIP_AUTO_TAG=1 git commit -m "..."
   - 后台 Header / Content 内边距随断点收紧（768px → 12px、480px → 8px），登录卡片与强制改密卡片在窄屏上以 `max-width: 100%` + `padding: 16px` 自适应
   - 全局 `.ant-modal { max-width: calc(100vw - 16px); }` 与 480px 媒体查询：所有弹窗（凭据查看、用户/资源编辑、SSH 模态等）在小屏不再水平溢出
   - `UsersPage` 等表格使用 `scroll={{ x: 'max-content' }}`，在窄屏下可水平滚动而不挤压列宽
+- ✅ 响应式主题（深色 / 浅色 / 跟随系统）：
+  - 通过 `ThemeProvider` + AntD `ConfigProvider({ algorithm })` 实现全站主题统一切换；用户选择持久化到 `localStorage`，`auto` 模式下监听 `prefers-color-scheme` 变化
+  - `<html data-theme="light|dark">` 属性 + CSS 变量驱动非 AntD 元素（body 背景、登录页、状态页 header 等）的颜色切换
+  - 所有页面右上角均放置主题切换按钮（auto → 浅色 → 深色 三态循环）；登录页 / 强制改密页固定右上角；后台在 Header；运维总览与状态页在标题工具栏
+  - 终端 UI（SSH Terminal Modal / Terminal Page）按行业惯例**始终保持深色**，不跟随全局主题
+  - 个人设置页的 MFA 二维码在深色主题下加白底包裹，保证扫码兼容性，覆盖运维总览、状态页、登录页、强制改密页与后台管理页：
+  - 已设置 `<meta name="viewport" content="width=device-width, initial-scale=1.0" />`
+  - 卡片网格使用 AntD 栅格断点 `xs={24} sm={12} md={8} lg={6}`，在 360px 单列、≥576px 双列、≥768px 三列、≥992px 四列
+  - 后台 `<Sider breakpoint="lg" collapsedWidth={0}>`：屏宽 < 992px 时侧边栏自动收起为汉堡菜单
+  - 后台 Header / Content 内边距随断点收紧（768px → 12px、480px → 8px），登录卡片与强制改密卡片在窄屏上以 `max-width: 100%` + `padding: 16px` 自适应
+  - 全局 `.ant-modal { max-width: calc(100vw - 16px); }` 与 480px 媒体查询：所有弹窗（凭据查看、用户/资源编辑、SSH 模态等）在小屏不再水平溢出
+  - `UsersPage` 等表格使用 `scroll={{ x: 'max-content' }}`，在窄屏下可水平滚动而不挤压列宽
 - ✅ 操作审计：凭据查看/编辑/用户管理/MFA 操作自动记录
 - ✅ 代理自动登录：PocketBase (Beszel)、Certd 适配器 + 通用表单适配器；需在资源凭据中启用 `webLoginEnabled` 开关后方可生效；凭据解密同样支持历史明文兼容，与资源管理模块行为一致
 - ✅ 反向代理网关：认证注入、HTML 重写、URL 代理重写

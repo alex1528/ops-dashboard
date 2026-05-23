@@ -12,6 +12,7 @@ import { useAuth } from '../auth';
 import type { ResourceStatus } from '../types';
 import SshTerminalModal from '../components/SshTerminalModal';
 import CopyButton from '../components/CopyButton';
+import ThemeToggle from '../components/ThemeToggle';
 
 const { Title, Text } = Typography;
 
@@ -177,6 +178,7 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <Title level={2} style={{ margin: 0 }}>🖥 运维总览</Title>
         <Space>
+          <ThemeToggle />
           <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
           <Button icon={<SettingOutlined />} onClick={() => nav('/admin')}>管理</Button>
         </Space>

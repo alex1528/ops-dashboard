@@ -7,6 +7,7 @@ import { useAuth } from '../auth';
 import api from '../api';
 import SshTerminalModal from '../components/SshTerminalModal';
 import CopyButton from '../components/CopyButton';
+import ThemeToggle from '../components/ThemeToggle';
 
 const { Title, Text } = Typography;
 
@@ -141,6 +142,7 @@ export default function StatusPage() {
               )}
             </>
           )}
+          <ThemeToggle className="status-theme-toggle" />
         </div>
       </div>
 

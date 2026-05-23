@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined, SafetyOutlined, MailOutlined } from '@ant-d
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import api from '../api';
+import ThemeToggle from '../components/ThemeToggle';
 
 const { Title } = Typography;
 
@@ -79,6 +80,9 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <div className="login-corner-actions">
+        <ThemeToggle />
+      </div>
       <Card className="login-card">
         <Title level={3} className="login-title">
           {mode === 'register' ? 'Ops Dashboard 注册' : 'Ops Dashboard 管理登录'}

@@ -4,6 +4,7 @@ import { LockOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import api from '../api';
+import ThemeToggle from '../components/ThemeToggle';
 
 const { Title } = Typography;
 
@@ -57,6 +58,9 @@ export default function ForceChangePassword() {
 
   return (
     <div className="login-page">
+      <div className="login-corner-actions">
+        <ThemeToggle />
+      </div>
       <Card className="login-card">
         <Title level={3} className="login-title">
           首次登录请修改密码

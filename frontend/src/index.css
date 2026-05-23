@@ -1,23 +1,68 @@
+/* ============================================================
+   Ops Dashboard 全站样式
+   - 响应式断点：480px / 576px / 768px / 992px（与 AntD 栅格保持一致）
+   - 主题：通过 <html data-theme="light|dark"> 切换 CSS 变量；
+           AntD 组件颜色由 ConfigProvider + algorithm 控制
+   ============================================================ */
+
+/* ===== 主题 token：浅色（默认） ===== */
+:root,
+:root[data-theme='light'] {
+  --app-bg: #f0f2f5;
+  --surface-bg: #ffffff;
+  --surface-bg-soft: #f5f5f5;
+  --surface-bg-muted: #fafafa;
+  --border-color: #f0f0f0;
+  --border-color-strong: #d9d9d9;
+  --text-primary: rgba(0, 0, 0, 0.88);
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+  --text-quaternary: rgba(0, 0, 0, 0.25);
+  --header-bg: #ffffff;
+  --status-header-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  --status-header-text: #ffffff;
+  --status-header-text-soft: rgba(255, 255, 255, 0.7);
+  --status-group-label: #666666;
+}
+
+/* ===== 主题 token：深色 ===== */
+:root[data-theme='dark'] {
+  --app-bg: #14151a;
+  --surface-bg: #1f2128;
+  --surface-bg-soft: #252830;
+  --surface-bg-muted: #1a1c22;
+  --border-color: #303033;
+  --border-color-strong: #424247;
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-tertiary: rgba(255, 255, 255, 0.45);
+  --text-quaternary: rgba(255, 255, 255, 0.28);
+  --header-bg: #1f2128;
+  --status-header-bg: linear-gradient(135deg, #0d1116 0%, #11151c 100%);
+  --status-header-text: rgba(255, 255, 255, 0.92);
+  --status-header-text-soft: rgba(255, 255, 255, 0.6);
+  --status-group-label: rgba(255, 255, 255, 0.55);
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #f0f2f5;
+  background: var(--app-bg);
+  color: var(--text-primary);
 }
 
 /* ===== 响应式设计基础 =====
    - HTML 已设置 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    - AntD `<Sider breakpoint="lg" collapsedWidth={0}>` 在屏宽 < 992px 时自动收起侧边栏
    - 表格使用 `scroll={{ x: 'max-content' }}` 在窄屏下水平滚动
-   - 弹窗宽度统一使用 .responsive-modal 类，实际宽度 = min(<width prop>, 92vw)
+   - 弹窗在小屏不水平溢出（统一限制 max-width）
 */
 
-/* ===== Modal 通用响应式：保证在小屏不溢出 ===== */
+/* ===== Modal 通用响应式 ===== */
 .ant-modal {
-  /* 限制 Modal 容器最大宽度，避免在 320~480px 设备上水平溢出 */
   max-width: calc(100vw - 16px);
 }
 .ant-modal .ant-modal-content {
-  /* iPhone SE 等小屏避免左右贴边 */
   word-break: break-word;
 }
 @media (max-width: 480px) {
@@ -35,9 +80,10 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  background: var(--app-bg);
 }
 
-/* Dashboard */
+/* ===== Dashboard ===== */
 .dashboard-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -112,7 +158,7 @@ body {
   padding: 80px 0;
 }
 .semi-auto-prefill {
-  background: #f5f5f5;
+  background: var(--surface-bg-soft);
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -142,30 +188,35 @@ body {
   margin-top: 4px;
 }
 
-/* ResourcesPage */
+/* ===== ResourcesPage ===== */
 .resources-header {
   display: flex;
   justify-content: space-between;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .resources-group-wrap {
   margin-bottom: 16px;
 }
 .resources-group-handle {
   cursor: grab;
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 16px;
 }
 .resources-row {
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color);
   gap: 12px;
+  background: var(--surface-bg);
+  /* 拖拽高亮颜色由 ResourcesPage 内 SortableResourceRow 通过内联 background 切换；
+     这里给一个稳定的默认背景，避免拖拽结束后回到默认值时与主题不一致 */
 }
 .resources-row-handle {
   cursor: grab;
-  color: #bbb;
+  color: var(--text-quaternary);
   font-size: 14px;
   flex-shrink: 0;
 }
@@ -223,19 +274,18 @@ body {
 .resources-credential-divider {
   margin: 4px 0 !important;
 }
-/* Inline page title (removes default margin) */
 .page-title-inline {
   margin: 0 !important;
 }
 
-/* StatusPage — read-only status board */
+/* ===== StatusPage ===== */
 .status-page {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 16px 32px;
 }
 .status-header {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: var(--status-header-bg);
   border-radius: 0 0 12px 12px;
   padding: 20px 24px;
   display: flex;
@@ -248,17 +298,18 @@ body {
 .status-summary {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
 }
 .status-title {
   margin: 0 !important;
-  color: #fff !important;
+  color: var(--status-header-text) !important;
 }
 .status-subtitle {
-  color: rgba(255,255,255,0.7);
+  color: var(--status-header-text-soft);
   font-size: 13px;
 }
 .status-summary-text {
-  color: #fff;
+  color: var(--status-header-text);
 }
 .status-bar-wrap {
   margin-bottom: 16px;
@@ -268,7 +319,7 @@ body {
 }
 .status-group-label {
   font-size: 14px;
-  color: #666;
+  color: var(--status-group-label);
   display: block;
   margin-bottom: 8px;
 }
@@ -285,7 +336,7 @@ body {
   color: #ff4d4f;
 }
 .status-icon--unknown {
-  color: #d9d9d9;
+  color: var(--text-quaternary);
 }
 .status-card-top {
   display: flex;
@@ -330,6 +381,7 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 4px;
+  flex-wrap: wrap;
 }
 .status-action-button {
   font-size: 12px;
@@ -363,8 +415,12 @@ body {
   margin-top: 4px;
 }
 @media (max-width: 576px) {
-  .status-header { padding: 16px; }
-  .status-summary { gap: 10px; }
+  .status-header {
+    padding: 16px;
+  }
+  .status-summary {
+    gap: 10px;
+  }
 }
 
 /* ===== UsersPage Permission Modal ===== */
@@ -376,8 +432,7 @@ body {
   margin-bottom: 12px;
 }
 
-/* ===== Utility / Shared ===== */
-/* Login page */
+/* ===== Login / ForceChangePassword 卡片 ===== */
 .login-page {
   display: flex;
   justify-content: center;
@@ -385,6 +440,7 @@ body {
   min-height: 100vh;
   padding: 16px;
   box-sizing: border-box;
+  background: var(--app-bg);
 }
 .login-card {
   width: 380px;
@@ -397,8 +453,33 @@ body {
 .login-text-center {
   text-align: center;
 }
+/* 登录页/强制改密页右上角的主题切换按钮 */
+.login-corner-actions {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .login-corner-actions {
+    top: 8px;
+    right: 8px;
+  }
+}
+/* 状态页右上角主题切换按钮，与统计 badge 同行 */
+.status-theme-toggle {
+  margin-left: 4px;
+  color: var(--status-header-text) !important;
+}
+.status-theme-toggle:hover {
+  color: var(--status-header-text) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
 
-/* Admin sider logo */
+/* ===== AdminLayout ===== */
 .sider-title {
   color: #fff;
   padding: 16px;
@@ -406,23 +487,21 @@ body {
   font-weight: 600;
   text-align: center;
 }
-
-/* Admin layout header & content — 响应式 padding/margin */
 .admin-header {
-  background: #fff;
+  background: var(--header-bg);
   padding: 0 24px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
 }
 .admin-header-user {
   display: inline-flex;
   align-items: center;
 }
 .admin-header-username {
-  /* 移动端用户名过长时省略 */
   max-width: 30vw;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -454,7 +533,7 @@ body {
   }
 }
 
-/* Page container wrappers */
+/* ===== Page containers ===== */
 .page-container {
   max-width: 700px;
 }
@@ -462,7 +541,7 @@ body {
   max-width: 600px;
 }
 
-/* About page */
+/* ===== About page ===== */
 .about-header-body {
   text-align: center;
   padding: 24px 0;
@@ -471,22 +550,25 @@ body {
   margin-top: 16px;
 }
 
-/* SmtpPage code block */
+/* ===== SmtpPage code block ===== */
 .smtp-env-block {
-  background: #f5f5f5;
+  background: var(--surface-bg-soft);
   padding: 12px;
   border-radius: 6px;
   margin-top: 8px;
   font-size: 13px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
 }
 
-/* SettingsPage */
+/* ===== SettingsPage ===== */
 .settings-hint {
   margin-left: 12px;
   font-size: 13px;
 }
 
-/* ProfilePage MFA QR */
+/* ===== ProfilePage MFA QR ===== */
 .mfa-qr-container {
   text-align: center;
   margin: 16px 0;
@@ -494,11 +576,16 @@ body {
 .mfa-qr-container img {
   width: 200px;
   height: 200px;
+  /* 浅色背景的 QR 在深色主题下会显得过亮；包一层白底确保扫码器仍能识别 */
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 4px;
 }
 
-/* ===== SSH Terminal ===== */
+/* ===== SSH Terminal（保持深色——终端通用约定） =====
+   终端 UI 不跟随全局主题：终端模拟器（xterm.js）在浅色背景下可读性差，
+   且行业惯例是终端始终深色。因此这里继续使用固定深色配色。 */
 
-/* Modal overrides for dark terminal */
 .ssh-terminal-modal .ant-modal-content {
   background: #0d0d1a;
   border: 1px solid #2a2a3e;
@@ -518,9 +605,8 @@ body {
 }
 .ssh-terminal-modal .ant-modal-close:hover {
   color: #aaa;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
-/* xterm.js container inside modal */
 .ssh-terminal-modal .xterm {
   height: 100%;
 }

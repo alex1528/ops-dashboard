@@ -157,7 +157,8 @@ function SortableResourceRow({
     node.style.transform = CSS.Transform.toString(transform) ?? '';
     node.style.transition = transition ?? '';
     node.style.opacity = isDragging ? '0.5' : '1';
-    node.style.background = isDragging ? '#fafafa' : '#fff';
+    // 使用 CSS 变量保证拖拽高亮在浅色与深色主题下都自然
+    node.style.background = isDragging ? 'var(--surface-bg-muted)' : 'var(--surface-bg)';
   }, [transform, transition, isDragging]);
 
   const statusTag = () => {

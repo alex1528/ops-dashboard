@@ -1,10 +1,11 @@
-import { Layout, Menu, Button, Typography, Tag } from 'antd';
+import { Layout, Menu, Button, Typography, Tag, Space } from 'antd';
 import {
   DashboardOutlined, AppstoreOutlined, LogoutOutlined,
   TeamOutlined, UserOutlined, MailOutlined, InfoCircleOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
+import ThemeToggle from '../components/ThemeToggle';
 
 const { Header, Content, Sider } = Layout;
 
@@ -49,7 +50,10 @@ export default function AdminLayout() {
               </Tag>
             </Typography.Text>
           )}
-          <Button icon={<LogoutOutlined />} onClick={() => { logout(); nav('/login'); }}>退出</Button>
+          <Space size={4}>
+            <ThemeToggle />
+            <Button icon={<LogoutOutlined />} onClick={() => { logout(); nav('/login'); }}>退出</Button>
+          </Space>
         </Header>
         <Content className="admin-content">
           <Outlet />

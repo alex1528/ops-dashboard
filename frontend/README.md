@@ -230,3 +230,64 @@ api.interceptors.response.use(
 - `UsersPage` 等表格使用 `scroll={{ x: 'max-content' }}` 在窄屏下水平滚动，不挤压列宽
 
 如需新增页面或组件，请遵循以上断点策略，并在 `index.css` 中按 768px / 480px 两档收紧 padding/margin/字体即可。
+
+## 响应式主题（深色 / 浅色 / 跟随系统）
+
+主题系统由 `src/theme.tsx` 与 `src/components/ThemeToggle.tsx` 实现，配合 `main.tsx` 中的 `ConfigProvider` 桥接 AntD 设计 token。
+
+### 架构
+
+```
+ThemeProvider (theme.tsx)
+  ├─ mode: 'auto' | 'light' | 'dark'        ← 用户选择，持久化到 localStorage
+  ├─ resolvedMode: 'light' | 'dark'         ← 解析后实际值（auto 时跟随 prefers-color-scheme）
+  └─ setMode / cycleMode                     ← 切换 API
+       │
+       ▼
+<html data-theme="light|dark">              ← 让 index.css 中的 CSS 变量切换
+       │
+       ▼
+<ConfigProvider theme={{ algorithm: dark/default }}>  ← AntD 组件主题
+```
+
+### `useTheme()`
+
+```ts
+import { useTheme } from '../theme';
+
+const { mode, resolvedMode, setMode, cycleMode } = useTheme();
+// mode === 'auto' | 'light' | 'dark'
+// resolvedMode === 'light' | 'dark'  （auto 已被解析）
+```
+
+### `<ThemeToggle />`
+
+单按钮三态切换：auto → light → dark → auto，已集成在以下位置，确保任何视图都能切主题：
+
+| 位置 | 文件 |
+| --- | --- |
+| 后台 Header（已登录用户） | `pages/AdminLayout.tsx` |
+| 运维总览右上角工具栏 | `pages/Dashboard.tsx` |
+| 状态页 header 右侧 | `pages/StatusPage.tsx` |
+| 登录页右上角（未登录） | `pages/Login.tsx` |
+| 强制改密页右上角 | `pages/ForceChangePassword.tsx` |
+
+### CSS 变量
+
+`index.css` 在 `:root[data-theme='light']` / `:root[data-theme='dark']` 下定义同名变量，所有页面颜色都通过变量读取。如需新增页面，请使用以下变量而不是写死颜色：
+
+| 变量 | 用途 |
+| --- | --- |
+| `--app-bg` | 全局页面背景（body / login-page / app-loading） |
+| `--surface-bg` / `--surface-bg-soft` / `--surface-bg-muted` | 表面层 / 弱表面层 / 拖拽高亮 |
+| `--border-color` / `--border-color-strong` | 边框 |
+| `--text-primary` / `--text-secondary` / `--text-tertiary` / `--text-quaternary` | 文字四级层级 |
+| `--header-bg` | 后台 Header 背景 |
+| `--status-header-bg` / `--status-header-text` / `--status-header-text-soft` | 状态页 hero 渐变与文字 |
+| `--status-group-label` | 状态页分组小标题 |
+
+### 不跟随主题的区域
+
+- **SSH 终端 Modal / Terminal Page**：按行业惯例始终深色，不读取上述变量，硬编码 `#0d0d1a` / `#1a1a2e`。
+- **MFA 二维码**：在深色主题下加白底 `padding: 8px` 包裹，保证扫码识别率。
+- **Sider 菜单**：保持 `theme="dark"`（AntD 经典默认），与浅色主体形成对比，并避免菜单图标在浅色背景下不易辨识。
