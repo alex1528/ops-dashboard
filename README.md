@@ -344,7 +344,7 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 2. `docker-entrypoint.sh` 在 `prisma migrate deploy` 之前再做一次 shell 层校验，输出可定位的中文错误并 `exit 1`；
 3. `CryptoService` 把诊断拆分为「未设置 / 占位符 / 长度错 / 含非 hex」四类中文错误，便于排查。
 
-> 注：`docker-compose.yml` 中带 `${VAR:?中文消息}` 的 environment 条目必须用双引号整体包裹（如 `"MASTER_KEY=${MASTER_KEY:?...}"`），否则消息中的中文标点（如 `: `）会被 YAML 解析为映射分隔符，触发 `services.ops-dashboard.environment.[N]: unexpected type map[string]interface {}`。
+> 注：`docker-compose.yml` 中带 `${VAR:?中文消息}` 的 environment 条目必须用双引号整体包裹（如 `"MASTER_KEY=${MASTER_KEY:?...}"`），否则消息中的中文标点（如`:`）会被 YAML 解析为映射分隔符，触发 `services.ops-dashboard.environment.[N]: unexpected type map[string]interface {}`。
 > 任何错误信息都只引用变量名，不会回显 `MASTER_KEY` / `JWT_SECRET` / `ADMIN_PASSWORD` 的真实值。
 
 ## 用户管理
@@ -363,7 +363,7 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 - 用户在 `/admin/profile` 自行绑定 MFA
 - 支持 Google Authenticator、Microsoft Authenticator 等标准 TOTP 应用
 - 绑定流程：生成密钥 → 扫描二维码 → 输入 6 位验证码确认
-- 启用后每次登录需额外输入动态验证码
+- 启用后每次登录需额外输入动态验证码；验证界面采用独立安全视觉样式（渐变图标 + 等宽居中输入框），响应式适配移动端
 - 用户可输入当前密码自行禁用 MFA
 - 管理员可在用户管理页面重置他人 MFA
 

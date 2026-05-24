@@ -5,3 +5,6 @@ dist
 .env
 .copilot-specs-cache/
 backup/
+.markdownlint.json
+.markdownlint.json
+backend/dist/tsconfig.tsbuildinfo

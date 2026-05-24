@@ -290,4 +290,5 @@ const { mode, resolvedMode, setMode, cycleMode } = useTheme();
 
 - **SSH 终端 Modal / Terminal Page**：按行业惯例始终深色，不读取上述变量，硬编码 `#0d0d1a` / `#1a1a2e`。
 - **MFA 二维码**：在深色主题下加白底 `padding: 8px` 包裹，保证扫码识别率。
+- **MFA 验证输入**：登录时 MFA 步骤使用独立安全视觉样式（渐变图标圆环 + 居中等宽输入框），响应式适配移动端。
 - **Sider 菜单**：保持 `theme="dark"`（AntD 经典默认），与浅色主体形成对比，并避免菜单图标在浅色背景下不易辨识。
