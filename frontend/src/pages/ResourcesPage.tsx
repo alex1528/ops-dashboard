@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import {
-  App, Button, Modal, Form, Input, Switch,
+  App, Button, Modal, Form, Input, Switch, AutoComplete,
   Space, Popconfirm, Spin, Tag, Typography, Tooltip, Card, Upload, Divider,
 } from 'antd';
 import {
@@ -27,7 +27,6 @@ interface CredentialDetail {
   extra: string;
   privateKey: string;
   sshEnabled: boolean;
-  webLoginEnabled: boolean;
 }
 
 interface Resource {
@@ -35,13 +34,14 @@ interface Resource {
   name: string;
   url: string;
   group: string;
+  subGroup: string;
   groupSortOrder: number;
   description: string;
   sortOrder: number;
   enabled: boolean;
   healthCheckEnabled: boolean;
   ownerId?: string | null;
-  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean; webLoginEnabled?: boolean } | null;
+  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
 
@@ -184,10 +184,7 @@ function SortableResourceRow({
         <Space size="small" wrap>
           <Text strong>{r.name}</Text>
           {!r.enabled && <Tag color="default">已禁用</Tag>}
-          {r.credential?.webLoginEnabled
-            ? <Tag color="green">自动登录</Tag>
-            : <Tag color="blue">外链</Tag>
-          }
+          {r.credential && <Tag color="green">有凭据</Tag>}
           {statusTag()}
         </Space>
         <div>
@@ -225,8 +222,24 @@ export default function ResourcesPage() {
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [sshSwitchEnabled, setSshSwitchEnabled] = useState(false);
   const [webLoginSwitchEnabled, setWebLoginSwitchEnabled] = useState(false);
+  const [groupOptions, setGroupOptions] = useState<{ value: string }[]>([]);
+  const [subGroupOptions, setSubGroupOptions] = useState<{ value: string }[]>([]);
+  const [allGroupData, setAllGroupData] = useState<{ groups: string[]; subGroups: Record<string, string[]> }>({ groups: [], subGroups: {} });
   const [form] = Form.useForm();
   const privateKeyFileRef = useRef<HTMLInputElement>(null);
+
+  const loadGroups = async () => {
+    try {
+      const res = await api.get('/resources/groups');
+      setAllGroupData(res.data);
+      setGroupOptions(res.data.groups.map((g: string) => ({ value: g })));
+    } catch { /* ignore */ }
+  };
+
+  const handleGroupChange = (value: string) => {
+    const subs = allGroupData.subGroups[value] || [];
+    setSubGroupOptions(subs.map((s) => ({ value: s })));
+  };
 
   const load = async () => {
     setLoading(true);
@@ -240,7 +253,7 @@ export default function ResourcesPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadGroups(); }, []);
 
   const isAdmin = user?.role === 'admin';
   // Admin can manage all; regular user can only manage their own resources
@@ -325,7 +338,8 @@ export default function ResourcesPage() {
     form.resetFields();
     setSshSwitchEnabled(false);
     setWebLoginSwitchEnabled(false);
-    form.setFieldsValue({ group: 'default', enabled: true, healthCheckEnabled: true, credSshEnabled: false, credWebLoginEnabled: false });
+    form.setFieldsValue({ group: 'default', subGroup: '', enabled: true, healthCheckEnabled: true, credSshEnabled: false, credWebLoginEnabled: false });
+    handleGroupChange('default');
     setModalOpen(true);
   };
 
@@ -335,11 +349,12 @@ export default function ResourcesPage() {
     setSshSwitchEnabled(false);
     setWebLoginSwitchEnabled(false);
     const values: Record<string, any> = {
-      name: r.name, url: r.url, group: r.group,
+      name: r.name, url: r.url, group: r.group, subGroup: r.subGroup || '',
       description: r.description,
       enabled: r.enabled,
       healthCheckEnabled: r.healthCheckEnabled,
     };
+    handleGroupChange(r.group);
     try {
       const { data } = await api.get(`/resources/${r.id}/credential`);
       if (data && data.exists !== false) {
@@ -348,9 +363,9 @@ export default function ResourcesPage() {
         values.credExtra = data.extra ?? '';
         values.credPrivateKey = data.privateKey ?? '';
         values.credSshEnabled = data.sshEnabled ?? false;
-        values.credWebLoginEnabled = data.webLoginEnabled ?? false;
+        values.credWebLoginEnabled = !!(data.username || data.password);
         setSshSwitchEnabled(data.sshEnabled ?? false);
-        setWebLoginSwitchEnabled(data.webLoginEnabled ?? false);
+        setWebLoginSwitchEnabled(!!(data.username || data.password));
       }
     } catch { /* 凭据获取失败时保持空白 */ }
     form.setFieldsValue(values);
@@ -359,6 +374,8 @@ export default function ResourcesPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields();
+    // credWebLoginEnabled is only a UI toggle, not a backend field
+    delete values.credWebLoginEnabled;
     if (editingId) {
       if (!values.credUsername) delete values.credUsername;
       if (!values.credPassword) delete values.credPassword;
@@ -413,7 +430,7 @@ export default function ResourcesPage() {
       const res = await api.get(`/resources/${resource.id}/credential`);
       const data = res.data;
       if (!data || data.exists === false) {
-        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false, webLoginEnabled: false });
+        setCredentialData({ exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false });
         return;
       }
       setCredentialData({
@@ -423,7 +440,6 @@ export default function ResourcesPage() {
         extra: data.extra ?? '',
         privateKey: data.privateKey ?? '',
         sshEnabled: data.sshEnabled ?? false,
-        webLoginEnabled: data.webLoginEnabled ?? false,
       });
     } catch (err: any) {
       setCredentialError(err?.response?.data?.message || '凭据获取失败');
@@ -504,7 +520,19 @@ export default function ResourcesPage() {
             <Input placeholder="http://192.168.x.x:8090/" />
           </Form.Item>
           <Form.Item name="group" label="分组">
-            <Input placeholder="default" />
+            <AutoComplete
+              placeholder="default"
+              options={groupOptions}
+              filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+              onChange={handleGroupChange}
+            />
+          </Form.Item>
+          <Form.Item name="subGroup" label="子分组">
+            <AutoComplete
+              placeholder="可选，留空则不分子组"
+              options={subGroupOptions}
+              filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+            />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} />
@@ -520,16 +548,16 @@ export default function ResourcesPage() {
           </Form.Item>
 
           <Typography.Title level={5} className="resources-section-title">
-            自动登录 Web 系统（加密存储）
+            Web系统账号信息(加密存储)
           </Typography.Title>
           <Typography.Text type="secondary" className="resources-section-note">
-            启用后，系统将自动把凭据填入目标 Web 系统的登录表单中完成登录
+            记录目标资源的Web系统账号凭据信息，加密存储于数据库中
           </Typography.Text>
           <Form.Item
             name="credWebLoginEnabled"
-            label="启用自动登录"
+            label="启用Web系统账号凭据"
             valuePropName="checked"
-            tooltip="开启后，点击卡片将自动填入用户名和密码完成登录；关闭则以外链方式直接打开目标地址"
+            tooltip="开启后可记录该资源的Web系统用户名和密码等信息"
           >
             <Switch
               checkedChildren="已启用"
@@ -656,16 +684,8 @@ export default function ResourcesPage() {
         ) : credentialData ? (
           <Space direction="vertical" size="large" className="resources-credential-space">
             <Typography.Text type="secondary" className="resources-credential-section-label">
-              自动登录 Web 系统
+              Web系统账号信息
             </Typography.Text>
-            <div>
-              <Text type="secondary">自动登录</Text>
-              <div>
-                {credentialData.webLoginEnabled
-                  ? <Tag color="green">已启用</Tag>
-                  : <Tag color="default">未启用</Tag>}
-              </div>
-            </div>
             <div>
               <Text type="secondary">用户名</Text>
               <div>{renderCredentialValue(credentialData.username)}</div>

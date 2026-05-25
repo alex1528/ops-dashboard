@@ -112,6 +112,7 @@ export class AuthController {
       email: user.email,
       mfaEnabled: user.mfaEnabled,
       mustChangePassword: user.mustChangePassword,
+      mustSetupMfa: user.mustSetupMfa,
     };
   }
 

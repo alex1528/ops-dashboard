@@ -50,6 +50,11 @@ export class ResourcesController {
     return result;
   }
 
+  @Get('groups')
+  async getGroups() {
+    return this.resources.getGroups();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.resources.findOne(id);

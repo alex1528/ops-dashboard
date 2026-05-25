@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { App, Badge, Button, Card, Col, Input, Modal, Row, Space, Spin, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
-  ReloadOutlined, SettingOutlined, LinkOutlined, LoginOutlined, EyeOutlined, EyeInvisibleOutlined, DownloadOutlined,
+  ReloadOutlined, SettingOutlined, LinkOutlined, EyeOutlined, EyeInvisibleOutlined, DownloadOutlined,
   CodeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,6 @@ export default function Dashboard() {
   const { message: messageApi } = App.useApp();
   const [resources, setResources] = useState<ResourceStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [launching, setLaunching] = useState<string | null>(null);
   const [credLoading, setCredLoading] = useState<string | null>(null);
   const [credModal, setCredModal] = useState<{
     open: boolean;
@@ -52,37 +51,10 @@ export default function Dashboard() {
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
 
   /**
-   * Smart launch: uses proxy auto-login for authenticated users with webLoginEnabled,
-   * falls back to direct link otherwise.
-   *
-   * 仅由资源卡片底部的「打开链接」按钮显式触发；不再绑定到 Card 整体的点击事件，
-   * 避免误点击卡片留白区域时意外打开目标页面。
+   * Open resource link in new tab.
    */
-  const handleLaunch = async (r: ResourceStatus) => {
-    // If not logged in or resource doesn't have webLogin enabled, just open directly
-    if (!isAuthenticated || !r.webLoginEnabled) {
-      window.open(r.url, '_blank', 'noopener');
-      return;
-    }
-
-    setLaunching(r.id);
-    try {
-      const res = await api.get(`/proxy/${r.id}/launch`);
-      const data = res.data;
-
-      if (data.mode === 'auto' && data.proxyUrl) {
-        // Open the proxied URL — the backend injects auth into all requests
-        window.open(data.proxyUrl, '_blank', 'noopener');
-      } else {
-        // Fallback: open direct link
-        window.open(data.targetUrl || r.url, '_blank', 'noopener');
-        if (data.error) messageApi.warning(data.error);
-      }
-    } catch {
-      // API failed, fallback to direct link
-      window.open(r.url, '_blank', 'noopener');
-    }
-    setLaunching(null);
+  const handleLaunch = (r: ResourceStatus) => {
+    window.open(r.url, '_blank', 'noopener');
   };
 
   /** 显式的「打开链接」按钮点击处理：阻止冒泡，避免影响卡片其它交互 */
@@ -149,7 +121,8 @@ export default function Dashboard() {
   const grouped = resources
     .filter((r) => !isAuthenticated || user?.role === 'admin' || hasResourceAccess(r.id, r.group, r.ownerId))
     .reduce<Record<string, ResourceStatus[]>>((acc, r) => {
-      (acc[r.group] = acc[r.group] || []).push(r);
+      const key = r.subGroup ? `${r.group} / ${r.subGroup}` : `${r.group} / 全部`;
+      (acc[key] = acc[key] || []).push(r);
       return acc;
     }, {});
 
@@ -188,13 +161,12 @@ export default function Dashboard() {
         {sortedGroups.map(([group, items]) => (
           <div key={group} className="dashboard-group">
             <Title level={4} className="dashboard-group-title">
-              {group === 'default' ? '未分组' : group}
+              {group === 'default / 全部' ? '未分组' : group}
             </Title>
             <Row gutter={[16, 16]}>
               {items.map((r) => (
                 <Col key={r.id} xs={24} sm={12} md={8} lg={6}>
                   <Card
-                    loading={launching === r.id}
                     styles={{ body: { padding: 16 } }}
                   >
                     <div className="dashboard-card-top">
@@ -232,13 +204,9 @@ export default function Dashboard() {
                       </Text>
                     )}
                     <div className="dashboard-card-footer">
-                      {r.webLoginEnabled
-                        ? <Tag color="green" className="dashboard-card-mode">自动登录</Tag>
-                        : <Tag color="blue" className="dashboard-card-mode">外链</Tag>
-                      }
                       <Space size={4}>
                         <CopyButton text={r.url} />
-                        {isAuthenticated && (
+                        {isAuthenticated && r.hasCredential && (
                           <Tooltip title="查看凭据">
                             <Button
                               size="small"
@@ -261,14 +229,12 @@ export default function Dashboard() {
                             />
                           </Tooltip>
                         )}
-                        <Tooltip title={r.webLoginEnabled ? '一键直达（自动登录）' : '在新标签页打开'}>
+                        <Tooltip title="在新标签页打开">
                           <Button
                             size="small"
                             type="text"
-                            icon={r.webLoginEnabled
-                              ? <LoginOutlined style={{ color: '#52c41a' }} />
-                              : <LinkOutlined style={{ color: '#1890ff' }} />}
-                            aria-label={r.webLoginEnabled ? '一键直达' : '在新标签页打开'}
+                            icon={<LinkOutlined style={{ color: '#1890ff' }} />}
+                            aria-label="在新标签页打开"
                             onClick={(e) => handleLaunchClick(e, r)}
                           />
                         </Tooltip>

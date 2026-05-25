@@ -92,7 +92,8 @@ export default function StatusPage() {
   const total = visibleResources.length;
 
   const grouped = visibleResources.reduce<Record<string, ResourceStatus[]>>((acc, r) => {
-    (acc[r.group] = acc[r.group] || []).push(r);
+    const key = r.subGroup ? `${r.group} / ${r.subGroup}` : `${r.group} / 全部`;
+    (acc[key] = acc[key] || []).push(r);
     return acc;
   }, {});
 
@@ -162,7 +163,7 @@ export default function StatusPage() {
         {sortedGroups.map(([group, items]) => (
           <div key={group} className="status-group">
             <Text strong className="status-group-label">
-              {group === 'default' ? '未分组' : group}
+              {group === 'default / 全部' ? '未分组' : group}
             </Text>
             <Row gutter={[12, 12]}>
               {items.map(r => (
@@ -205,15 +206,17 @@ export default function StatusPage() {
                     {isAuthenticated && (
                       <div className="status-actions">
                         <CopyButton text={r.url} />
-                        <Tooltip title="查看凭据">
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={<EyeOutlined />}
-                            onClick={() => viewCredential(r.id, r.name)}
-                            className="status-action-button"
-                          />
-                        </Tooltip>
+                        {r.hasCredential && (
+                          <Tooltip title="查看凭据">
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<EyeOutlined />}
+                              onClick={() => viewCredential(r.id, r.name)}
+                              className="status-action-button"
+                            />
+                          </Tooltip>
+                        )}
                         {r.sshEnabled && (
                           <Tooltip title="SSH 终端">
                             <Button

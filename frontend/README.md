@@ -216,9 +216,9 @@ api.interceptors.response.use(
 | 按钮 | 图标 | 行为 |
 | --- | --- | --- |
 | 复制链接 | `<CopyOutlined />` | 把 `resource.url` 写入剪贴板，未登录用户也可使用 |
-| 查看凭据 | `<EyeOutlined />` | 已登录用户拉取并展示加密凭据 |
+| 查看凭据 | `<EyeOutlined />` | 已登录用户且资源已配置凭据时显示，拉取并展示加密凭据 |
 | SSH 终端 | `<CodeOutlined />` | 已登录且资源 `sshEnabled` 时，打开浏览器内 SSH 终端 |
-| 打开链接 / 一键直达 | `<LinkOutlined />` 或 `<LoginOutlined />` | 显式触发 `handleLaunch(r)`：`webLoginEnabled=true` 走 `/proxy/:id/launch` 自动登录，否则在新标签页打开原始 URL |
+| 打开链接 | `<LinkOutlined />` | 在新标签页打开资源 URL |
 
 ## 响应式设计
 

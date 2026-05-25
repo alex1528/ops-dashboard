@@ -11,6 +11,7 @@ export interface ResourceStatus {
   name: string;
   url: string;
   group: string;
+  subGroup: string;
   groupSortOrder: number;
   sortOrder: number;
   description: string;
@@ -18,7 +19,7 @@ export interface ResourceStatus {
   ownerId?: string | null;
   hasPrivateKey?: boolean;
   sshEnabled?: boolean;
-  webLoginEnabled?: boolean;
+  hasCredential?: boolean;
   lastHealth: HealthInfo | null;
 }
 

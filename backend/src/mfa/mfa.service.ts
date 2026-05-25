@@ -48,7 +48,7 @@ export class MfaService {
 
     await this.prisma.adminUser.update({
       where: { id: userId },
-      data: { mfaEnabled: true },
+      data: { mfaEnabled: true, mustSetupMfa: false },
     });
 
     return { enabled: true };

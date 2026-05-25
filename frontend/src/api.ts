@@ -25,8 +25,13 @@ api.interceptors.response.use(
       data?.code === 'MUST_CHANGE_PASSWORD' &&
       window.location.pathname !== '/force-change-password'
     ) {
-      // 命中后端 ForceChangePasswordGuard，跳转到强制改密页（避免在该页自身循环跳转）
       window.location.href = '/force-change-password';
+    } else if (
+      status === 403 &&
+      data?.code === 'MUST_SETUP_MFA' &&
+      window.location.pathname !== '/force-setup-mfa'
+    ) {
+      window.location.href = '/force-setup-mfa';
     }
     return Promise.reject(err);
   },

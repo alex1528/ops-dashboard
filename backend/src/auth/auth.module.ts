@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { ForceChangePasswordGuard } from './force-change-password.guard';
+import { ForceMfaGuard } from './force-mfa.guard';
 import { SystemModule } from '../system/system.module';
 
 @Module({
@@ -25,6 +26,8 @@ import { SystemModule } from '../system/system.module';
     // 全局注册首次登录强制改密守卫，对所有路由生效；具体放行规则由 Guard 内部白名单
     // （/auth/me、/auth/me/permissions、/auth/change-password、/auth/logout）控制。
     { provide: APP_GUARD, useClass: ForceChangePasswordGuard },
+    // 改密完成后强制绑定 MFA 守卫（排在 ForceChangePasswordGuard 之后）
+    { provide: APP_GUARD, useClass: ForceMfaGuard },
   ],
   controllers: [AuthController],
   exports: [AuthService],

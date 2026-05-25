@@ -16,6 +16,7 @@ model AdminUser {
   mfaSecret          String    @default("") // TOTP secret, encrypted
   mfaEnabled         Boolean   @default(false)
   mustChangePassword Boolean   @default(true) // 首次登录强制改密标志（管理员创建/重置密码时翻为 true）
+  mustSetupMfa       Boolean   @default(true) // 强制绑定 MFA 标志（绑定成功后翻为 false）
   passwordChangedAt  DateTime? // 最近一次成功改密时间，仅用于审计/可观测
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -41,6 +42,7 @@ model Resource {
   name        String
   url         String
   group       String   @default("default")
+  subGroup    String   @default("")
   groupSortOrder      Int      @default(0)
   description String   @default("")
   sortOrder           Int      @default(0)
@@ -62,7 +64,6 @@ model Credential {
   extra      String   @default("") // encrypted JSON for additional fields
   privateKey String   @default("") // encrypted PEM private key (Linux SSH)
   sshEnabled Boolean  @default(false) // whether Web Terminal (SSH) is enabled
-  webLoginEnabled Boolean @default(false) // whether auto-login to Web system is enabled
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

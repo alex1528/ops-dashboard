@@ -24,7 +24,7 @@ export class HealthCheckController {
       orderBy: [{ groupSortOrder: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: {
         healthRecords: { orderBy: { checkedAt: 'desc' }, take: 1 },
-        credential: { select: { privateKey: true, sshEnabled: true, webLoginEnabled: true } },
+        credential: { select: { privateKey: true, sshEnabled: true } },
       },
     });
 
@@ -33,6 +33,7 @@ export class HealthCheckController {
       name: r.name,
       url: r.url,
       group: r.group,
+      subGroup: r.subGroup,
       groupSortOrder: r.groupSortOrder,
       sortOrder: r.sortOrder,
       description: r.description,
@@ -40,7 +41,7 @@ export class HealthCheckController {
       ownerId: r.ownerId,
       hasPrivateKey: !!(r.credential?.privateKey && r.credential.privateKey !== ''),
       sshEnabled: r.credential?.sshEnabled ?? false,
-      webLoginEnabled: r.credential?.webLoginEnabled ?? false,
+      hasCredential: !!r.credential,
       lastHealth: r.healthCheckEnabled
         ? (r.healthRecords[0] || null)
         : { status: 'up', statusCode: null, responseMs: null, checkedAt: new Date().toISOString(), skipped: true },

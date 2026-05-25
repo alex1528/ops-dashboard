@@ -8,7 +8,6 @@ import { ResourcesModule } from './resources/resources.module';
 import { HealthCheckModule } from './health-check/health-check.module';
 import { AuditModule } from './audit/audit.module';
 import { CryptoModule } from './crypto/crypto.module';
-import { ProxyModule } from './proxy/proxy.module';
 import { BackupModule } from './backup/backup.module';
 import { UsersModule } from './users/users.module';
 import { MfaModule } from './mfa/mfa.module';
@@ -29,7 +28,6 @@ import { SshModule } from './ssh/ssh.module';
     ResourcesModule,
     HealthCheckModule,
     AuditModule,
-    ProxyModule,
     BackupModule,
     UsersModule,
     MfaModule,

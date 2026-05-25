@@ -18,7 +18,7 @@ backend/
 │   ├── audit/                         # AuditService：写审计日志
 │   ├── prisma/                        # PrismaService 全局注入
 │   ├── crypto/                        # 对称加密（用于 MFA secret 等）
-│   └── ...                            # health-check、mail、mfa、proxy、resources 等业务模块
+│   └── ...                            # health-check、mail、mfa、resources、ssh 等业务模块
 └── package.json
 ```
 
