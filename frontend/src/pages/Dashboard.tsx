@@ -296,7 +296,7 @@ export default function Dashboard() {
             {credModal.data.privateKey && (
               <div>
                 <div className="dash-cred-key-header">
-                  <Text type="secondary">私钥（PEM）：</Text>
+                  <Text type="secondary">私钥(PEM)：</Text>
                   <Button
                     size="small"
                     type="link"

@@ -338,8 +338,8 @@ export default function ResourcesPage() {
     form.resetFields();
     setSshSwitchEnabled(false);
     setWebLoginSwitchEnabled(false);
-    form.setFieldsValue({ group: 'default', subGroup: '', enabled: true, healthCheckEnabled: true, credSshEnabled: false, credWebLoginEnabled: false });
-    handleGroupChange('default');
+    form.setFieldsValue({ group: '', subGroup: '', enabled: true, healthCheckEnabled: true, credSshEnabled: false, credWebLoginEnabled: false });
+    handleGroupChange('');
     setModalOpen(true);
   };
 
@@ -538,7 +538,7 @@ export default function ResourcesPage() {
           </Form.Item>
           <Form.Item name="group" label="分组">
             <AutoComplete
-              placeholder="default"
+              placeholder="输入或选择分组"
               options={groupOptions}
               filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
               onChange={handleGroupChange}
@@ -597,14 +597,14 @@ export default function ResourcesPage() {
           )}
 
           <Typography.Title level={5} className="resources-section-title">
-            Linux SSH 凭据（Web Terminal）
+            Linux SSH凭据(Web Terminal)
           </Typography.Title>
           <Typography.Text type="secondary" className="resources-section-note">
             用于通过浏览器内置 Web Terminal 以 SSH 方式登录目标 Linux amd64 服务器
           </Typography.Text>
           <Form.Item
             name="credSshEnabled"
-            label="启用 Web Terminal (SSH)"
+            label="启用Web Terminal(SSH)"
             valuePropName="checked"
             tooltip="开启后，已登录用户可在卡片上点击 SSH 按钮直接通过浏览器登录该服务器"
           >
@@ -618,7 +618,7 @@ export default function ResourcesPage() {
             <>
               <Form.Item
                 name="credPrivateKey"
-                label="私钥（PEM）"
+                label="私钥(PEM)"
                 tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
               >
                 <Input.TextArea
@@ -717,7 +717,7 @@ export default function ResourcesPage() {
             </div>
             <Divider className="resources-credential-divider" />
             <Typography.Text type="secondary" className="resources-credential-section-label">
-              Linux SSH 凭据（Web Terminal）
+              Linux SSH凭据(Web Terminal)
             </Typography.Text>
             <div>
               <Text type="secondary">Web Terminal (SSH)</Text>
@@ -730,7 +730,7 @@ export default function ResourcesPage() {
             {credentialData.privateKey && (
               <div>
                 <div className="dash-cred-key-header">
-                  <Text type="secondary">私钥（PEM）</Text>
+                  <Text type="secondary">私钥(PEM)</Text>
                   <Button
                     size="small"
                     type="link"
