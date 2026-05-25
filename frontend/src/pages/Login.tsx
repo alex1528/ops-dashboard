@@ -39,8 +39,8 @@ export default function Login() {
           nav('/admin');
         }
       }
-    } catch {
-      messageApi.error('用户名或密码错误');
+    } catch (err: any) {
+      messageApi.error(err?.response?.data?.message || '用户名或密码错误');
     }
     setLoading(false);
   };
@@ -69,9 +69,14 @@ export default function Login() {
   const onRegister = async (values: { username: string; password: string; email?: string }) => {
     setLoading(true);
     try {
-      await register(values.username, values.password, values.email);
-      messageApi.success('注册成功');
-      nav('/admin');
+      const result = await register(values.username, values.password, values.email);
+      if (result?.needActivation) {
+        messageApi.success('注册成功，请查收激活邮件完成账号激活');
+        setMode('login');
+      } else {
+        messageApi.success('注册成功');
+        nav('/admin');
+      }
     } catch (err: any) {
       messageApi.error(err?.response?.data?.message || '注册失败');
     }

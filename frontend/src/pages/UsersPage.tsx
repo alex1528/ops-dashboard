@@ -3,7 +3,7 @@ import {
   App, Table, Button, Modal, Form, Input, Select, Space,
   Popconfirm, Tag, Typography, Tooltip, Tree,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, SafetyOutlined, MailOutlined } from '@ant-design/icons';
 import api from '../api';
 
 interface User {
@@ -12,6 +12,7 @@ interface User {
   email: string;
   role: string;
   mfaEnabled: boolean;
+  activated: boolean;
   createdAt: string;
 }
 
@@ -107,6 +108,15 @@ export default function UsersPage() {
       load();
     } catch {
       messageApi.error('重置失败');
+    }
+  };
+
+  const handleSendActivation = async (id: string) => {
+    try {
+      await api.post(`/users/${id}/send-activation`);
+      messageApi.success('激活邮件已发送');
+    } catch (err: any) {
+      messageApi.error(err?.response?.data?.message || '发送激活邮件失败');
     }
   };
 
@@ -208,16 +218,23 @@ export default function UsersPage() {
       render: (v: boolean) => v ? <Tag color="green">已启用</Tag> : <Tag>未启用</Tag>,
     },
     {
+      title: '状态', dataIndex: 'activated', key: 'activated', width: 80,
+      render: (v: boolean) => v ? <Tag color="green">已激活</Tag> : <Tag color="orange">未激活</Tag>,
+    },
+    {
       title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180,
       render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
     {
-      title: '操作', key: 'actions', width: 240,
+      title: '操作', key: 'actions', width: 280,
       render: (_: any, r: User) => {
         const isLastAdmin = r.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1;
         return (
           <Space size="small">
             <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+            {!r.activated && r.email && (
+              <Tooltip title="发送激活邮件"><Button size="small" icon={<MailOutlined />} onClick={() => handleSendActivation(r.id)} /></Tooltip>
+            )}
             {r.role === 'user' && (
               <Tooltip title="权限"><Button size="small" icon={<SafetyOutlined />} onClick={() => openPermModal(r)} /></Tooltip>
             )}
@@ -274,10 +291,11 @@ export default function UsersPage() {
           <Form.Item
             name="password"
             label="密码"
-            rules={editingId ? [] : [{ required: true, message: '请输入密码' }]}
+            rules={editingId ? [] : []}
+            extra={!editingId ? '留空则需要通过激活邮件设置密码' : undefined}
           >
             <Input.Password
-              placeholder={editingId ? '留空则不修改' : '设置登录密码'}
+              placeholder={editingId ? '留空则不修改' : '设置登录密码（可选）'}
               autoComplete="new-password"
             />
           </Form.Item>

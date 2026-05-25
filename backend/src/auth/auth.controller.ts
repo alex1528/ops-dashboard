@@ -1,12 +1,15 @@
-import { Controller, Post, Get, Body, UseGuards, Req, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards, Req, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ChangePasswordDto } from './change-password.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemService } from '../system/system.service';
-import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength } from 'class-validator';
+import { UsersService } from '../users/users.service';
+import { MailService } from '../mail/mail.service';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength, MinLength } from 'class-validator';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 class LoginDto {
   @IsString() @IsNotEmpty() username!: string;
@@ -20,12 +23,19 @@ class RegisterDto {
   @IsOptional() @IsEmail() email?: string;
 }
 
+class ActivateDto {
+  @IsString() @IsNotEmpty() token!: string;
+  @IsString() @IsNotEmpty() @MinLength(8) @MaxLength(200) password!: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
     private auth: AuthService,
     private prisma: PrismaService,
     private systemService: SystemService,
+    private usersService: UsersService,
+    private mail: MailService,
   ) {}
 
   @Post('login')
@@ -34,7 +44,7 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
     const userCount = await this.prisma.adminUser.count();
     const isFirstUser = userCount === 0;
 
@@ -68,19 +78,49 @@ export class AuthController {
     }
 
     const hash = await bcrypt.hash(dto.password, 12);
-    await this.prisma.adminUser.create({
+    const activationToken = crypto.randomBytes(32).toString('hex');
+    const user = await this.prisma.adminUser.create({
       data: {
         username: dto.username,
         password: hash,
         email: dto.email || '',
         role,
-        // 自助注册的用户由用户本人输入密码，无需被强制改密
+        activated: isFirstUser,
+        activationToken: isFirstUser ? '' : activationToken,
         mustChangePassword: false,
+        mustSetupMfa: !isFirstUser,
       },
     });
 
-    // Auto-login after registration
-    return this.auth.login(dto.username, dto.password);
+    // First user (admin) auto-login without activation
+    if (isFirstUser) {
+      return this.auth.login(dto.username, dto.password);
+    }
+
+    // Send activation email if email is provided and SMTP is configured
+    if (dto.email && this.mail.isConfigured) {
+      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const baseUrl = `${proto}://${host}`;
+      const activationUrl = `${baseUrl}/activate?token=${activationToken}`;
+      const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Ops Dashboard 账号激活</h2>
+          <p>您好，<strong>${dto.username}</strong>！</p>
+          <p>感谢您注册 Ops Dashboard，请点击下方按钮激活账号：</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${activationUrl}" style="background: #1677ff; color: #fff; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-size: 16px;">激活账号</a>
+          </p>
+          <p style="color: #666; font-size: 13px;">如果按钮无法点击，请复制以下链接到浏览器打开：</p>
+          <p style="color: #666; font-size: 13px; word-break: break-all;">${activationUrl}</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+          <p style="color: #999; font-size: 12px;">此邮件由 Ops Dashboard 系统自动发送，请勿回复。</p>
+        </div>
+      `;
+      await this.mail.sendMail(dto.email, '[Ops Dashboard] 账号激活', html);
+    }
+
+    return { success: true, message: '注册成功，请查收激活邮件完成账号激活', needActivation: true };
   }
 
   /**
@@ -129,5 +169,18 @@ export class AuthController {
       select: { type: true, target: true },
     });
     return { role: user.role, permissions };
+  }
+
+  /** 验证激活令牌是否有效（公开接口，无需认证） */
+  @Get('activate-check')
+  async activateCheck(@Query('token') token: string) {
+    if (!token) throw new BadRequestException('缺少激活令牌');
+    return this.usersService.validateActivationToken(token);
+  }
+
+  /** 用户通过激活链接设置密码并激活账号（公开接口，无需认证） */
+  @Post('activate')
+  async activate(@Body() dto: ActivateDto) {
+    return this.usersService.activateWithToken(dto.token, dto.password);
   }
 }

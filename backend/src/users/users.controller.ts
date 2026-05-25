@@ -49,6 +49,16 @@ export class UsersController {
     return this.users.remove(id);
   }
 
+  @Post(':id/send-activation')
+  async sendActivation(@Param('id') id: string, @Req() req: any) {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const baseUrl = `${proto}://${host}`;
+    const result = await this.users.sendActivationEmail(id, baseUrl);
+    await this.audit.log(req.user?.id, 'user.send_activation', id, '', req.ip);
+    return result;
+  }
+
   @Get(':id/permissions')
   getPermissions(@Param('id') id: string) {
     return this.users.getPermissions(id);

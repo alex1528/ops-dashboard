@@ -8,6 +8,8 @@ import { JwtStrategy } from './jwt.strategy';
 import { ForceChangePasswordGuard } from './force-change-password.guard';
 import { ForceMfaGuard } from './force-mfa.guard';
 import { SystemModule } from '../system/system.module';
+import { UsersModule } from '../users/users.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { SystemModule } from '../system/system.module';
       signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any },
     }),
     SystemModule,
+    UsersModule,
+    MailModule,
     // PrismaModule 与 AuditModule 都已声明为 @Global()，无需在此显式导入；
     // ForceChangePasswordGuard / AuthService 等可直接注入对应 Service。
   ],

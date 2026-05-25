@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { CreateUserDto, UpdateUserDto, UpdateUserPermissionsDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mail: MailService,
+  ) {}
 
   async findAll() {
     const users = await this.prisma.adminUser.findMany({
@@ -17,6 +22,7 @@ export class UsersService {
       email: u.email,
       role: u.role,
       mfaEnabled: u.mfaEnabled,
+      activated: u.activated,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
     }));
@@ -39,15 +45,16 @@ export class UsersService {
   async create(dto: CreateUserDto) {
     const exists = await this.prisma.adminUser.findUnique({ where: { username: dto.username } });
     if (exists) throw new ConflictException('用户名已存在');
-    const hash = await bcrypt.hash(dto.password, 12);
+    const hash = dto.password ? await bcrypt.hash(dto.password, 12) : '';
     const user = await this.prisma.adminUser.create({
       data: {
         username: dto.username,
         password: hash,
         email: dto.email || '',
         role: dto.role || 'user',
-        // 管理员后台创建的新用户必须首次登录强制修改密码
+        activated: false,
         mustChangePassword: true,
+        mustSetupMfa: true,
       },
     });
     return this.findOne(user.id);
@@ -139,5 +146,69 @@ export class UsersService {
       where: { userId, type: 'group', target: resource.group },
     });
     return !!groupPerm;
+  }
+
+  /** Generate activation token and send activation email */
+  async sendActivationEmail(userId: string, baseUrl: string) {
+    const user = await this.prisma.adminUser.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+    if (user.activated) throw new BadRequestException('该用户已激活');
+    if (!user.email) throw new BadRequestException('该用户未配置邮箱地址');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.adminUser.update({
+      where: { id: userId },
+      data: { activationToken: token },
+    });
+
+    const activationUrl = `${baseUrl}/activate?token=${token}`;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Ops Dashboard 账号激活</h2>
+        <p>您好，<strong>${user.username}</strong>！</p>
+        <p>您的 Ops Dashboard 账号已创建，请点击下方按钮激活账号并设置密码：</p>
+        <p style="text-align: center; margin: 30px 0;">
+          <a href="${activationUrl}" style="background: #1677ff; color: #fff; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-size: 16px;">激活账号</a>
+        </p>
+        <p style="color: #666; font-size: 13px;">如果按钮无法点击，请复制以下链接到浏览器打开：</p>
+        <p style="color: #666; font-size: 13px; word-break: break-all;">${activationUrl}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+        <p style="color: #999; font-size: 12px;">此邮件由 Ops Dashboard 系统自动发送，请勿回复。</p>
+      </div>
+    `;
+    const result = await this.mail.sendMail(user.email, '[Ops Dashboard] 账号激活', html);
+    if (!result.sent) throw new BadRequestException(`邮件发送失败: ${result.reason}`);
+    return { success: true, message: '激活邮件已发送' };
+  }
+
+  /** Activate account with token and set password */
+  async activateWithToken(token: string, newPassword: string) {
+    if (!token) throw new BadRequestException('激活令牌不能为空');
+    const user = await this.prisma.adminUser.findFirst({ where: { activationToken: token } });
+    if (!user) throw new BadRequestException('激活令牌无效或已过期');
+    if (user.activated) throw new BadRequestException('该账号已激活');
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.adminUser.update({
+      where: { id: user.id },
+      data: {
+        password: hash,
+        activated: true,
+        activationToken: '',
+        mustChangePassword: false,
+        mustSetupMfa: true,
+        passwordChangedAt: new Date(),
+      },
+    });
+    return { success: true, username: user.username };
+  }
+
+  /** Validate activation token (check if it's valid without consuming it) */
+  async validateActivationToken(token: string) {
+    if (!token) throw new BadRequestException('激活令牌不能为空');
+    const user = await this.prisma.adminUser.findFirst({ where: { activationToken: token } });
+    if (!user) throw new BadRequestException('激活令牌无效或已过期');
+    if (user.activated) throw new BadRequestException('该账号已激活');
+    return { valid: true, username: user.username };
   }
 }

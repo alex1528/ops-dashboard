@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsString() @IsNotEmpty() @MaxLength(50) username!: string;
-  @IsString() @IsNotEmpty() @MaxLength(200) password!: string;
+  @IsString() @IsOptional() @MaxLength(200) password?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsString() @IsOptional() @IsIn(['admin', 'user']) role?: string;
 }

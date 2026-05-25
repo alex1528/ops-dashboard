@@ -5,6 +5,7 @@ import { useAuth } from './auth';
 import Dashboard from './pages/Dashboard';
 import StatusPage from './pages/StatusPage';
 import Login from './pages/Login';
+import ActivatePage from './pages/ActivatePage';
 import AdminLayout from './pages/AdminLayout';
 import ResourcesPage from './pages/ResourcesPage';
 import UsersPage from './pages/UsersPage';
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/activate" element={<ActivatePage />} />
           <Route path="/force-change-password" element={<ForceChangePassword />} />
           <Route path="/force-setup-mfa" element={<ForceMfaSetup />} />
           <Route path="/terminal/:id" element={<TerminalPage />} />

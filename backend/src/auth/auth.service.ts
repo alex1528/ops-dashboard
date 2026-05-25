@@ -27,6 +27,11 @@ export class AuthService {
   async login(username: string, password: string, mfaCode?: string) {
     const user = await this.validateUser(username, password);
 
+    // Activation check
+    if (!user.activated) {
+      throw new UnauthorizedException('账号尚未激活，请先通过激活邮件完成激活');
+    }
+
     // MFA verification
     if (user.mfaEnabled && user.mfaSecret) {
       if (!mfaCode) {

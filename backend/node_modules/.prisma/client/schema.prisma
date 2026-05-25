@@ -10,11 +10,13 @@ generator client {
 model AdminUser {
   id                 String    @id @default(cuid())
   username           String    @unique
-  password           String // bcrypt hash
+  password           String    @default("") // bcrypt hash, empty for unactivated users
   email              String    @default("")
   role               String    @default("user") // admin | user
   mfaSecret          String    @default("") // TOTP secret, encrypted
   mfaEnabled         Boolean   @default(false)
+  activated          Boolean   @default(false) // 账号是否已激活（激活后才能登录）
+  activationToken    String    @default("") // 邮件激活令牌
   mustChangePassword Boolean   @default(true) // 首次登录强制改密标志（管理员创建/重置密码时翻为 true）
   mustSetupMfa       Boolean   @default(true) // 强制绑定 MFA 标志（绑定成功后翻为 false）
   passwordChangedAt  DateTime? // 最近一次成功改密时间，仅用于审计/可观测

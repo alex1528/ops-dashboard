@@ -85,6 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (username: string, password: string, email?: string) => {
     const res = await api.post('/auth/register', { username, password, email });
+    // If activation is required, don't set token/user
+    if (res.data.needActivation) {
+      return res.data;
+    }
     const t = res.data.access_token;
     localStorage.setItem('token', t);
     setToken(t);
