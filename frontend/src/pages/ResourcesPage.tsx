@@ -376,11 +376,28 @@ export default function ResourcesPage() {
     const values = await form.validateFields();
     // credWebLoginEnabled is only a UI toggle, not a backend field
     delete values.credWebLoginEnabled;
+
+    // Always send the master switches so backend can handle credential deletion
+    values.credWebEnabled = webLoginSwitchEnabled;
+    values.credSshEnabled = sshSwitchEnabled;
+
     if (editingId) {
-      if (!values.credUsername) delete values.credUsername;
-      if (!values.credPassword) delete values.credPassword;
-      if (!values.credExtra) delete values.credExtra;
-      if (!values.credPrivateKey) delete values.credPrivateKey;
+      // When web cred switch is OFF, don't send credential fields (backend handles deletion)
+      if (!webLoginSwitchEnabled) {
+        delete values.credUsername;
+        delete values.credPassword;
+        delete values.credExtra;
+      } else {
+        if (!values.credUsername) delete values.credUsername;
+        if (!values.credPassword) delete values.credPassword;
+        if (!values.credExtra) delete values.credExtra;
+      }
+      // When SSH switch is OFF, don't send private key
+      if (!sshSwitchEnabled) {
+        delete values.credPrivateKey;
+      } else {
+        if (!values.credPrivateKey) delete values.credPrivateKey;
+      }
     }
     try {
       if (editingId) {

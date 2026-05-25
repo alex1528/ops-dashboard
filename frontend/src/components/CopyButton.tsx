@@ -7,7 +7,7 @@ import { copyToClipboard } from '../utils/clipboard';
 /**
  * CopyButton：通用的「复制 URL」按钮组件。
  *
- * - 阻止点击事件向 Resource_Card 容器冒泡，避免触发「打开链接 / 自动登录」。
+ * - 阻止点击事件向 Resource_Card 容器冒泡，避免触发「打开链接」等交互。
  * - 复制成功时使用 Ant Design `messageApi`（来自 `App.useApp()`）反馈，
  *   并在 1500ms 内将图标切换为对勾、`aria-label` 临时切换为「已复制」。
  * - 当 `text` 为空字符串或纯空白字符时渲染禁用态，且不绑定任何点击/键盘处理。

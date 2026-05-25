@@ -1,6 +1,6 @@
 # Ops Dashboard 前端
 
-基于 **React 19 + Ant Design 5 + Vite 6** 的单页应用，覆盖运维总览、状态监控、资源/用户管理、个人设置、SSH 终端等页面，以及本特性新增的「资源 URL 一键复制」与「首次登录强制改密」流程。
+基于 **React 19 + Ant Design 5 + Vite 6** 的单页应用，覆盖运维总览、状态监控、资源/用户管理、个人设置、SSH 终端等页面，以及「资源 URL 一键复制」、「首次登录强制改密」、「强制绑定 MFA」和「二级分组」流程。
 
 > 当前目录的所有路径均相对于 `frontend/`。
 
@@ -14,15 +14,16 @@ frontend/
 │   │   ├── StatusPage.tsx               # 状态监控（资源卡片）
 │   │   ├── Login.tsx                    # 登录页
 │   │   ├── ForceChangePassword.tsx      # 首次登录强制改密页
+│   │   ├── ForceMfaSetup.tsx            # 强制绑定 MFA 页
 │   │   └── ...                          # AdminLayout、UsersPage、ProfilePage 等
 │   ├── components/
 │   │   ├── CopyButton.tsx               # 通用「复制 URL」按钮
 │   │   └── SshTerminalModal.tsx
 │   ├── utils/
 │   │   └── clipboard.ts                 # Clipboard_Service 封装
-│   ├── auth.tsx                         # AuthProvider / useAuth
-│   ├── api.ts                           # axios 实例与拦截器
-│   └── App.tsx                          # 路由 + ForceChangeRouteGuard
+│   ├── auth.tsx                         # AuthProvider / useAuth（含 markMfaSetupComplete）
+│   ├── api.ts                           # axios 实例与拦截器（含 MUST_SETUP_MFA 处理）
+│   └── App.tsx                          # 路由 + ForceChangeRouteGuard + ForceMfaRouteGuard
 ├── package.json
 └── vite.config.ts
 ```
@@ -37,7 +38,7 @@ frontend/
 
 ## 资源卡片 URL 一键复制
 
-Status_Dashboard 中的资源卡片（`Dashboard.tsx` / `StatusPage.tsx`）在底部操作区会插入一个独立的复制按钮，点击即把 `resource.url` 写入系统剪贴板，并通过 Ant Design `messageApi` 给出反馈。点击不会冒泡到卡片本体，因此不会触发原有的「打开链接 / 自动登录」交互。
+Status_Dashboard 中的资源卡片（`Dashboard.tsx` / `StatusPage.tsx`）在底部操作区会插入一个独立的复制按钮，点击即把 `resource.url` 写入系统剪贴板，并通过 Ant Design `messageApi` 给出反馈。点击不会冒泡到卡片本体，因此不会触发「打开链接」等交互。
 
 ### `utils/clipboard.ts`
 
@@ -115,6 +116,7 @@ interface UserInfo {
   email: string;
   mfaEnabled: boolean;
   mustChangePassword: boolean;
+  mustSetupMfa: boolean;
 }
 ```
 
@@ -208,6 +210,44 @@ api.interceptors.response.use(
 - 拦截语义：`{ code: 'MUST_CHANGE_PASSWORD', message: '请先修改初始密码' }` HTTP 403。
 
 如需进一步了解后端字段流转、守卫白名单与审计动作，可参考 `backend/README.md` 中「首次登录强制修改密码」一节。
+
+## 强制绑定 MFA 两步验证
+
+用户完成首次改密后，若 `mustSetupMfa === true` 且 `mfaEnabled === false`，前端通过 `<ForceMfaRouteGuard>` + axios 拦截器（`403 { code: 'MUST_SETUP_MFA' }`）引导至 `/force-setup-mfa` 页面。
+
+### `<ForceMfaRouteGuard>`（位于 `App.tsx`）
+
+包裹在 `<ForceChangeRouteGuard>` 内层，确保改密优先于 MFA：
+
+- 当 `!user.mustChangePassword && !user.mfaEnabled && user.mustSetupMfa === true` 时重定向到 `/force-setup-mfa`
+- 白名单：`/force-setup-mfa`、`/force-change-password`、`/login`
+
+### `pages/ForceMfaSetup.tsx`
+
+两阶段交互：
+
+1. **初始态**：展示说明文案 + 「开始设置 MFA」按钮，点击调用 `POST /api/mfa/setup` 获取二维码
+2. **绑定态**：展示 TOTP 二维码（QR Code）+ 6 位验证码输入框；验证成功后调用 `markMfaSetupComplete()` 翻转本地状态，跳转回业务页面
+
+### `auth.tsx` 中的 `markMfaSetupComplete()`
+
+```ts
+const markMfaSetupComplete = useCallback(() => {
+  setUser((u) => (u ? { ...u, mustSetupMfa: false, mfaEnabled: true } : u));
+}, []);
+```
+
+### `api.ts` 拦截器对 `403 MUST_SETUP_MFA` 的兜底
+
+与改密拦截器同级，当任何请求返回 `403 { code: 'MUST_SETUP_MFA' }` 时，自动跳转到 `/force-setup-mfa`。
+
+## 二级分组（分组 + 子分组）
+
+资源管理表单中的分组字段使用 `<AutoComplete>` 组件，支持从现有值中搜索选择或输入新值：
+
+- **分组**：调用 `GET /api/resources/groups` 获取所有已使用的分组列表作为选项数据源
+- **子分组**：根据当前选定的分组动态过滤该分组下的子分组列表
+- 状态看板和状态页分组标题显示二级层级："分组 / 子分组"，子分组为空时显示"分组 / 全部"，`default / 全部` 显示为"未分组"
 
 ## 资源卡片点击行为
 

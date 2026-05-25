@@ -71,7 +71,7 @@ export default function AboutPage() {
               <Tag>用户管理</Tag>
               <Tag>MFA 两步验证</Tag>
               <Tag>邮件通知</Tag>
-              <Tag>自动登录代理</Tag>
+              <Tag>凭据加密存储</Tag>
               <Tag>数据库备份</Tag>
             </Space>
           </Descriptions.Item>

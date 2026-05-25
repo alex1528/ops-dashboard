@@ -12,6 +12,7 @@ export class CreateResourceDto {
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
   // Web system credential (encrypted before storage)
+  @IsBoolean() @IsOptional() credWebEnabled?: boolean; // master switch for web credentials
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;
@@ -32,6 +33,7 @@ export class UpdateResourceDto {
   @IsBoolean() @IsOptional() healthCheckEnabled?: boolean;
 
   // Web system credential
+  @IsBoolean() @IsOptional() credWebEnabled?: boolean; // master switch for web credentials
   @IsString() @IsOptional() @MaxLength(200) credUsername?: string;
   @IsString() @IsOptional() @MaxLength(500) credPassword?: string;
   @IsString() @IsOptional() @MaxLength(2000) credExtra?: string;

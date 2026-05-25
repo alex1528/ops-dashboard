@@ -99,12 +99,13 @@ export class ResourcesService {
   }
 
   async create(dto: CreateResourceDto, ownerId?: string | null) {
-    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
+    const { credWebEnabled, credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
     const resource = await this.prisma.resource.create({
       data: { ...resourceData, ownerId: ownerId ?? null },
     });
 
-    if (credUsername || credPassword || credPrivateKey || credSshEnabled) {
+    const shouldCreateCred = credWebEnabled !== false && (credUsername || credPassword || credPrivateKey || credSshEnabled);
+    if (shouldCreateCred) {
       await this.prisma.credential.create({
         data: {
           resourceId: resource.id,
@@ -123,18 +124,37 @@ export class ResourcesService {
     const existing = await this.prisma.resource.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException();
 
-    const { credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
+    const { credWebEnabled, credUsername, credPassword, credExtra, credPrivateKey, credSshEnabled, ...resourceData } = dto;
     await this.prisma.resource.update({ where: { id }, data: resourceData });
 
-    if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined) {
+    // Handle credential deletion: when both web and SSH switches are off, remove credential record
+    const existingCred = await this.prisma.credential.findUnique({ where: { resourceId: id } });
+
+    if (credWebEnabled === false && credSshEnabled === false) {
+      // Both switches off → delete credential entirely
+      if (existingCred) {
+        await this.prisma.credential.delete({ where: { resourceId: id } });
+      }
+    } else if (credWebEnabled === false && credSshEnabled === undefined) {
+      // Web switch explicitly off, SSH not mentioned → clear web fields, keep SSH as-is
+      if (existingCred) {
+        const emptyEnc = this.crypto.encrypt('');
+        const update: any = { username: emptyEnc, password: emptyEnc, extra: '' };
+        // If SSH is also off on the existing record, delete entirely
+        if (!existingCred.sshEnabled && (!existingCred.privateKey || existingCred.privateKey === '')) {
+          await this.prisma.credential.delete({ where: { resourceId: id } });
+        } else {
+          await this.prisma.credential.update({ where: { resourceId: id }, data: update });
+        }
+      }
+    } else if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);
-      if (credExtra !== undefined) credData.extra = this.crypto.encrypt(credExtra);
+      if (credExtra !== undefined) credData.extra = credExtra ? this.crypto.encrypt(credExtra) : '';
       if (credPrivateKey !== undefined) credData.privateKey = credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '';
       if (credSshEnabled !== undefined) credData.sshEnabled = credSshEnabled;
 
-      const existingCred = await this.prisma.credential.findUnique({ where: { resourceId: id } });
       if (existingCred) {
         await this.prisma.credential.update({ where: { resourceId: id }, data: credData });
       } else if (credUsername || credPassword || credPrivateKey || credSshEnabled) {
