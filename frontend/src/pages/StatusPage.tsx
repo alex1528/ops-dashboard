@@ -97,21 +97,16 @@ export default function StatusPage() {
     return acc;
   }, {});
 
-  // 按 groupSortOrder 排序分组（同一父分组的子分组相邻），组内按 sortOrder 排序
+  // 按 groupSortOrder 排序父分组，同父分组内子分组按最小 sortOrder 排序（严格遵循拖拽顺序）
   const sortedGroups = Object.entries(grouped)
     .sort(([keyA, a], [keyB, b]) => {
       const aOrder = a[0]?.groupSortOrder ?? 0;
       const bOrder = b[0]?.groupSortOrder ?? 0;
       if (aOrder !== bOrder) return aOrder - bOrder;
-      // 同一父分组内，按子分组名排序（"全部" 排最前）
-      const aParent = keyA.split(' / ')[0];
-      const bParent = keyB.split(' / ')[0];
-      if (aParent !== bParent) return aParent.localeCompare(bParent);
-      const aSub = keyA.split(' / ')[1] ?? '';
-      const bSub = keyB.split(' / ')[1] ?? '';
-      if (aSub === '全部') return -1;
-      if (bSub === '全部') return 1;
-      return aSub.localeCompare(bSub);
+      // 同一父分组内，按子分组中资源的最小 sortOrder 排序
+      const aMin = Math.min(...a.map(r => r.sortOrder ?? 0));
+      const bMin = Math.min(...b.map(r => r.sortOrder ?? 0));
+      return aMin - bMin;
     })
     .map(([group, items]) => [
       group,
