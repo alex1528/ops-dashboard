@@ -179,6 +179,42 @@ Content-Type: application/json
 
 `mfaRequired` 分支与登录失败分支均**不**携带 `mustChangePassword`，避免在 MFA 阶段暴露密码状态。
 
+## 邮件激活账号
+
+用户注册或由管理员创建（未设置密码）后，需通过激活邮件完成账号激活方可登录。
+
+### `AdminUser` 激活相关字段
+
+| 字段 | 类型 | 默认 | 含义 |
+| --- | --- | --- | --- |
+| `activated` | `Boolean` | `false` | 账号是否已激活。`false` 时 `AuthService.login` 拒绝登录并返回 `401 账号尚未激活` |
+| `activationToken` | `String` | `""` | 一次性激活令牌（32 字节 hex）。激活完成后清空 |
+
+> 迁移 `add_activation_fields` 将所有存量用户的 `activated` 回填为 `true`，不影响已有账号。
+
+### 激活流程
+
+1. **管理员创建用户**（密码可选）→ 用户 `activated=false`；管理员通过 `POST /api/users/:id/send-activation` 发送激活邮件
+2. **用户自助注册**（非首个用户）→ `activated=false`，自动发送激活邮件（需 SMTP 配置且提供邮箱）
+3. **首个注册用户（管理员）**→ `activated=true`，直接登录
+4. 用户点击邮件中的激活链接 → 前端 `/activate?token=xxx`
+5. 前端调用 `GET /api/auth/activate-check?token=xxx` 验证令牌
+6. 用户设置密码后调用 `POST /api/auth/activate` → 设置密码、`activated=true`、`activationToken=''`、`mustSetupMfa=true`
+
+### API
+
+| Method | Path | Auth | 说明 |
+| --- | --- | --- | --- |
+| `POST` | `/api/users/:id/send-activation` | 管理员 | 生成/重置 activationToken 并发送激活邮件 |
+| `GET` | `/api/auth/activate-check?token=xxx` | 公开 | 验证令牌有效性，返回 `{ valid, username }` |
+| `POST` | `/api/auth/activate` | 公开 | Body: `{ token, password }`，设置密码并激活 |
+
+### 激活相关审计动作
+
+| Action | 说明 |
+| --- | --- |
+| `user.send_activation` | 管理员发送/重发激活邮件 |
+
 `GET /api/auth/me` 返回同一字段，便于前端在刷新页面后通过 `/auth/me` 恢复会话时识别强制改密状态。
 
 ## 升级注意事项

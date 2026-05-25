@@ -125,7 +125,8 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 资源管理：新增/编辑/删除目标网址及其分组；支持二级分组（分组 + 子分组），新建资源时分组字段支持从现有分组中搜索选择或输入新分组值（AutoComplete），所有用户均可操作；支持分组和组内资源拖拽排序（基于 @dnd-kit），拖拽结果自动持久化；支持资源所有权机制——管理员创建的资源（ownerId 为空）仅管理员可管理，普通用户创建的资源归属该用户（ownerId=userId），用户仅能管理自己拥有的资源；管理员可管理所有资源（含普通用户创建的）
 - ✅ 凭据管理：每个目标独立的加密凭据存储 (AES-256-GCM)，凭据分两部分：**Web系统账号信息**（启用开关 + 用户名/密码/附加信息，用于记录目标资源的Web系统登录信息）和 **Linux SSH凭据**（私钥 PEM + `sshEnabled` 开关，用于 Web Terminal SSH 登录目标服务器）；未配置凭据的资源在状态看板不显示"查看凭据"按钮；私钥支持上传文件(.pem/.key/.txt)或直接粘贴 PEM 内容，查看时私钥内容默认折叠隐藏（点击「显示/隐藏」按钮切换展开），弹窗底部提供「下载私钥(.pem)」按钮；资源管理页"查看凭据"使用页面内受控弹窗展示加载态、空态、错误态和解密后的全部信息（支持一键复制）；兼容历史明文存量凭据读取；编辑时预先获取凭据再打开弹窗，用户名/密码（星号显示）可靠回显；编辑时每个凭据字段独立判断，留空则不更新不覆盖已存储值；解密失败时返回明确错误提示
 - ✅ 用户管理：后台新增用户，支持管理员/普通用户两种角色；管理员拥有全部资源的完整访问权限；普通用户需由管理员显式授权可见的资源分组或单个资源（未授权时不可见任何目标）
-- ✅ 公开注册：管理员可在「系统设置」页面开启/关闭公开注册开关（默认关闭）；开启后登录页显示注册入口，新用户自行注册为普通用户角色；系统无任何用户时，第一个注册者自动成为管理员（兼容 `.env` 中 `ADMIN_USERNAME`/`ADMIN_PASSWORD` 约束）；注册成功后进入首次登录流程（强制改密 → 强制 MFA）
+- ✅ 公开注册：管理员可在「系统设置」页面开启/关闭公开注册开关（默认关闭）；开启后登录页显示注册入口，新用户自行注册为普通用户角色；系统无任何用户时，第一个注册者自动成为管理员（兼容 `.env` 中 `ADMIN_USERNAME`/`ADMIN_PASSWORD` 约束）；非首个用户注册后需通过激活邮件完成账号激活方可登录
+- ✅ 邮件激活账号：管理员创建用户时密码可选，未设置密码的用户需通过激活邮件设置密码并激活；自助注册用户同样需邮件激活（首个管理员用户除外）；用户管理页面显示激活状态，支持管理员手动重新发送激活邮件；激活流程包括设置密码（≥8位，含字母和数字）并强制绑定 MFA；未激活用户无法登录
 - ✅ 资源权限管理：管理员可在「用户管理」页面为普通用户配置资源访问权限，支持按分组授权（授权整个分组下全部资源）或按单个资源授权；权限采用树形多选 UI（分组→资源层级结构）；前端过滤不可见资源卡片 + 后端凭据 API / SSH WebSocket 双重权限校验，防止越权访问
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容；新用户首次登录改密后强制绑定 MFA（`mustSetupMfa` 标志），历史未启用 MFA 的用户也会被强制设置
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
@@ -167,6 +168,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `/status` | 状态监控页（查看凭据/SSH 需登录） | 否（查看状态），是（查看凭据/SSH） |
 | `/login` | 登录 / 注册（支持 MFA） | - |
 | `/terminal/:id` | 独立 SSH 终端页（全屏） | 是 |
+| `/activate` | 账号激活页（通过邮件链接访问） | 否 |
 | `/force-change-password` | 首次登录强制修改密码页 | 是 |
 | `/force-setup-mfa` | 强制绑定 MFA 两步验证页 | 是 |
 | `/admin/resources` | 资源管理 | 是 |
@@ -185,6 +187,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `POST` | `/api/users` | 创建用户 | 是（管理员） |
 | `PUT` | `/api/users/:id` | 更新用户 | 是（管理员） |
 | `DELETE` | `/api/users/:id` | 删除用户 | 是（管理员） |
+| `POST` | `/api/users/:id/send-activation` | 发送激活邮件 | 是（管理员） |
+| `GET` | `/api/auth/activate-check` | 验证激活令牌是否有效 | 否 |
+| `POST` | `/api/auth/activate` | 通过激活令牌设置密码并激活账号 | 否 |
 | `POST` | `/api/mfa/setup` | 生成 MFA 密钥和二维码 | 是 |
 | `POST` | `/api/mfa/verify` | 验证并启用 MFA | 是 |
 | `POST` | `/api/mfa/disable` | 禁用 MFA | 是 |
@@ -324,8 +329,9 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 - 新增字段 `AdminUser.mustChangePassword`（默认 `true`）和 `AdminUser.passwordChangedAt`（默认 `NULL`）
 - **存量用户**：迁移会将所有已存在的 `AdminUser` 行的 `mustChangePassword` 显式回填为 `false`，避免老用户在升级后被意外强制改密
 - **初始管理员**（通过 `prisma db seed` 或 `docker-entrypoint.sh` 创建）：`mustChangePassword` 显式设为 `false`，避免容器首启即陷入「无人能登录改密」的循环
-- **公开注册用户**：通过 `/api/auth/register` 自助注册的用户 `mustChangePassword` 显式设为 `false`，避免被误强制改密
+- **公开注册用户**：通过 `/api/auth/register` 自助注册的用户 `mustChangePassword` 显式设为 `false`，注册后需通过激活邮件完成激活（首个管理员用户除外，自动激活并直接登录）
 - **管理员后台创建/重置密码**：`UsersService.create` 与 `UsersService.update`（携带 `password` 字段时）会将目标用户的 `mustChangePassword` 翻转为 `true`，触发首次登录强制改密流程
+- **邮件激活字段**：新增 `AdminUser.activated`（默认 `false`）和 `AdminUser.activationToken`（默认空字符串）；迁移时所有存量用户的 `activated` 回填为 `true`，不影响已有账号登录；管理员创建用户时密码可选，未设置密码的用户必须通过激活邮件设置密码后方可登录
 
 ## 故障排查
 
