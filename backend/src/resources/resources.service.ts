@@ -117,17 +117,19 @@ export class ResourcesService {
       data: { ...resourceData, ownerId: ownerId ?? null },
     });
 
-    const shouldCreateCred = credWebEnabled !== false && (credUsername || credPassword || credPrivateKey || credSshEnabled);
+    const hasWebCred = credWebEnabled && (credUsername || credPassword);
+    const hasSshCred = credPrivateKey || credSshEnabled;
+    const shouldCreateCred = hasWebCred || hasSshCred;
     if (shouldCreateCred) {
       await this.prisma.credential.create({
         data: {
           resourceId: resource.id,
-          username: this.crypto.encrypt(credUsername || ''),
-          password: this.crypto.encrypt(credPassword || ''),
+          username: credUsername ? this.crypto.encrypt(credUsername) : this.crypto.encrypt(''),
+          password: credPassword ? this.crypto.encrypt(credPassword) : this.crypto.encrypt(''),
           extra: credExtra ? this.crypto.encrypt(credExtra) : '',
           privateKey: credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '',
           sshEnabled: credSshEnabled ?? false,
-          webEnabled: !!credWebEnabled && !!(credUsername || credPassword),
+          webEnabled: !!hasWebCred,
         },
       });
     }
