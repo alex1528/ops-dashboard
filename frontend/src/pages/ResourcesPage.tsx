@@ -211,7 +211,7 @@ function SortableResourceRow({
 /* ===================== Main Page ===================== */
 export default function ResourcesPage() {
   const { message: messageApi } = App.useApp();
-  const { user, hasResourceAccess } = useAuth();
+  const { user } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -262,11 +262,11 @@ export default function ResourcesPage() {
   const isAdmin = user?.role === 'admin';
   // Owner or admin: full management rights
   const isOwnerOrAdmin = (r: Resource) => isAdmin || r.ownerId === user?.id;
-  // Authorized (non-owner) user: can only fill web credentials if webEnabled is not yet ON
+  // Authorized (non-owner) user: can fill web credentials if webEnabled is not yet ON
+  // Note: backend GET /resources already filters by access, so visibility implies authorization
   const canFillCredential = (r: Resource) => {
     if (isOwnerOrAdmin(r)) return false; // owners use full edit mode
-    if (!hasResourceAccess(r.id, r.group, r.ownerId)) return false;
-    // Can fill only if web credential switch is not yet enabled
+    // If resource is visible in list (backend authorized) and web credential not yet enabled
     return !(r.credential && r.credential.webEnabled);
   };
   // Combined: show edit button for owners/admins + show credential fill button for authorized users
