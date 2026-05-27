@@ -32,6 +32,7 @@ export class ResourcesService {
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
             sshEnabled: r.credential.sshEnabled,
+            webEnabled: r.credential.webEnabled,
           }
         : null,
       hasCredential: !!r.credential,
@@ -59,6 +60,7 @@ export class ResourcesService {
             hasExtra: !!r.credential.extra && r.credential.extra !== '',
             hasPrivateKey: !!r.credential.privateKey && r.credential.privateKey !== '',
             sshEnabled: r.credential.sshEnabled,
+            webEnabled: r.credential.webEnabled,
           }
         : null,
       hasCredential: !!r.credential,
@@ -77,7 +79,7 @@ export class ResourcesService {
 
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
-    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false };
+    if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false, webEnabled: false };
     try {
       return {
         exists: true,
@@ -86,6 +88,7 @@ export class ResourcesService {
         extra: cred.extra ? this.decryptStoredCredential(cred.extra) : '',
         privateKey: cred.privateKey ? this.decryptStoredCredential(cred.privateKey) : '',
         sshEnabled: cred.sshEnabled,
+        webEnabled: cred.webEnabled,
       };
     } catch (err) {
       throw new Error(`凭据解密失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -124,6 +127,7 @@ export class ResourcesService {
           extra: credExtra ? this.crypto.encrypt(credExtra) : '',
           privateKey: credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '',
           sshEnabled: credSshEnabled ?? false,
+          webEnabled: !!credWebEnabled && !!(credUsername || credPassword),
         },
       });
     }
@@ -149,7 +153,7 @@ export class ResourcesService {
       // Web switch explicitly off, SSH not mentioned → clear web fields, keep SSH as-is
       if (existingCred) {
         const emptyEnc = this.crypto.encrypt('');
-        const update: any = { username: emptyEnc, password: emptyEnc, extra: '' };
+        const update: any = { username: emptyEnc, password: emptyEnc, extra: '', webEnabled: false };
         // If SSH is also off on the existing record, delete entirely
         if (!existingCred.sshEnabled && (!existingCred.privateKey || existingCred.privateKey === '')) {
           await this.prisma.credential.delete({ where: { resourceId: id } });
@@ -157,17 +161,18 @@ export class ResourcesService {
           await this.prisma.credential.update({ where: { resourceId: id }, data: update });
         }
       }
-    } else if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined) {
+    } else if (credUsername !== undefined || credPassword !== undefined || credExtra !== undefined || credPrivateKey !== undefined || credSshEnabled !== undefined || credWebEnabled !== undefined) {
       const credData: any = {};
       if (credUsername !== undefined) credData.username = this.crypto.encrypt(credUsername);
       if (credPassword !== undefined) credData.password = this.crypto.encrypt(credPassword);
       if (credExtra !== undefined) credData.extra = credExtra ? this.crypto.encrypt(credExtra) : '';
       if (credPrivateKey !== undefined) credData.privateKey = credPrivateKey ? this.crypto.encrypt(credPrivateKey) : '';
       if (credSshEnabled !== undefined) credData.sshEnabled = credSshEnabled;
+      if (credWebEnabled !== undefined) credData.webEnabled = credWebEnabled;
 
       if (existingCred) {
         await this.prisma.credential.update({ where: { resourceId: id }, data: credData });
-      } else if (credUsername || credPassword || credPrivateKey || credSshEnabled) {
+      } else if (credUsername || credPassword || credPrivateKey || credSshEnabled || credWebEnabled) {
         await this.prisma.credential.create({
           data: {
             resourceId: id,
@@ -176,6 +181,7 @@ export class ResourcesService {
             extra: credData.extra ?? '',
             privateKey: credData.privateKey ?? '',
             sshEnabled: credSshEnabled ?? false,
+            webEnabled: credWebEnabled ?? false,
           },
         });
       }

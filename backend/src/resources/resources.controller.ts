@@ -106,16 +106,16 @@ export class ResourcesController {
         const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
         if (!hasAccess) throw new ForbiddenException('无权修改该资源');
 
-        // Check if web credentials are already enabled
+        // Check if web credentials are already enabled — only the webEnabled flag matters
         const existingCred = await this.resources.getCredentialRaw(id);
-        const webAlreadyEnabled = !!(existingCred && (existingCred.username || existingCred.password));
+        const webAlreadyEnabled = !!(existingCred && existingCred.webEnabled);
 
         if (webAlreadyEnabled) {
-          // Web credentials already filled — no further credential modification allowed
-          throw new ForbiddenException('该资源凭据已录入，无权修改');
+          // Web credentials already enabled — no further credential modification allowed
+          throw new ForbiddenException('该资源Web系统凭据已启用，无权修改');
         }
 
-        // Strip all non-credential fields — authorized user can only set web credentials
+        // Strip all non-credential fields — authorized user can only enable and fill web credentials
         const allowedDto: UpdateResourceDto = {};
         if (dto.credWebEnabled !== undefined) allowedDto.credWebEnabled = dto.credWebEnabled;
         if (dto.credUsername !== undefined) allowedDto.credUsername = dto.credUsername;

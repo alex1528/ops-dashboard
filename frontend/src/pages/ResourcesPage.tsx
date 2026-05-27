@@ -41,7 +41,7 @@ interface Resource {
   enabled: boolean;
   healthCheckEnabled: boolean;
   ownerId?: string | null;
-  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean } | null;
+  credential: { id: string; username: string; hasPassword: boolean; hasPrivateKey?: boolean; sshEnabled?: boolean; webEnabled?: boolean } | null;
   lastHealth: { status: string; responseMs: number | null; checkedAt: string; skipped?: boolean } | null;
 }
 
@@ -262,12 +262,12 @@ export default function ResourcesPage() {
   const isAdmin = user?.role === 'admin';
   // Owner or admin: full management rights
   const isOwnerOrAdmin = (r: Resource) => isAdmin || r.ownerId === user?.id;
-  // Authorized (non-owner) user: can only fill web credentials if not already filled
+  // Authorized (non-owner) user: can only fill web credentials if webEnabled is not yet ON
   const canFillCredential = (r: Resource) => {
     if (isOwnerOrAdmin(r)) return false; // owners use full edit mode
     if (!hasResourceAccess(r.id, r.group, r.ownerId)) return false;
-    // Can fill only if web credentials not yet filled
-    return !(r.credential && r.credential.hasPassword);
+    // Can fill only if web credential switch is not yet enabled
+    return !(r.credential && r.credential.webEnabled);
   };
   // Combined: show edit button for owners/admins + show credential fill button for authorized users
   const canManage = (r: Resource) => isOwnerOrAdmin(r) || canFillCredential(r);
@@ -380,9 +380,9 @@ export default function ResourcesPage() {
         values.credExtra = data.extra ?? '';
         values.credPrivateKey = data.privateKey ?? '';
         values.credSshEnabled = data.sshEnabled ?? false;
-        values.credWebLoginEnabled = !!(data.username || data.password);
+        values.credWebLoginEnabled = data.webEnabled ?? false;
         setSshSwitchEnabled(data.sshEnabled ?? false);
-        setWebLoginSwitchEnabled(!!(data.username || data.password));
+        setWebLoginSwitchEnabled(data.webEnabled ?? false);
       }
     } catch { /* 凭据获取失败时保持空白 */ }
     form.setFieldsValue(values);
