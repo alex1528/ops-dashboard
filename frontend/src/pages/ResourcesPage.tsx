@@ -262,12 +262,11 @@ export default function ResourcesPage() {
   const isAdmin = user?.role === 'admin';
   // Owner or admin: full management rights
   const isOwnerOrAdmin = (r: Resource) => isAdmin || r.ownerId === user?.id;
-  // Authorized (non-owner) user: can fill web credentials if webEnabled is not yet ON
-  // Note: backend GET /resources already filters by access, so visibility implies authorization
+  // Authorized (non-owner) user: always show edit button; actual webEnabled check done in openEdit
+  // Backend GET /resources already filters by access, so visibility implies authorization
   const canFillCredential = (r: Resource) => {
     if (isOwnerOrAdmin(r)) return false; // owners use full edit mode
-    // If resource is visible in list (backend authorized) and web credential not yet enabled
-    return !(r.credential && r.credential.webEnabled);
+    return true;
   };
   // Combined: show edit button for owners/admins + show credential fill button for authorized users
   const canManage = (r: Resource) => isOwnerOrAdmin(r) || canFillCredential(r);
@@ -375,6 +374,11 @@ export default function ResourcesPage() {
     try {
       const { data } = await api.get(`/resources/${r.id}/credential`);
       if (data && data.exists !== false) {
+        // For authorized non-owner: if web credential is already enabled, block editing
+        if (fillOnly && data.webEnabled) {
+          messageApi.info('该资源Web系统凭据已启用，无法再次修改');
+          return;
+        }
         values.credUsername = data.username ?? '';
         values.credPassword = data.password ?? '';
         values.credExtra = data.extra ?? '';
