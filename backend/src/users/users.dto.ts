@@ -13,6 +13,7 @@ export class UpdateUserDto {
   @IsOptional() @IsEmail() email?: string;
   @IsString() @IsOptional() @IsIn(['admin', 'user']) role?: string;
   @IsBoolean() @IsOptional() mfaEnabled?: boolean;
+  @IsBoolean() @IsOptional() activated?: boolean;
 }
 
 export class PermissionItem {

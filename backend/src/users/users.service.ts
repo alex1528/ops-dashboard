@@ -46,14 +46,16 @@ export class UsersService {
     const exists = await this.prisma.adminUser.findUnique({ where: { username: dto.username } });
     if (exists) throw new ConflictException('用户名已存在');
     const hash = dto.password ? await bcrypt.hash(dto.password, 12) : '';
+    // 管理员创建用户时：提供了密码则自动激活，否则需要通过激活邮件激活
+    const activated = !!dto.password;
     const user = await this.prisma.adminUser.create({
       data: {
         username: dto.username,
         password: hash,
         email: dto.email || '',
         role: dto.role || 'user',
-        activated: false,
-        mustChangePassword: true,
+        activated,
+        mustChangePassword: activated,
         mustSetupMfa: true,
       },
     });
@@ -75,6 +77,11 @@ export class UsersService {
     if (dto.mfaEnabled === false) {
       data.mfaEnabled = false;
       data.mfaSecret = '';
+    }
+    // Admin can manually activate a user
+    if (dto.activated === true) {
+      data.activated = true;
+      data.activationToken = '';
     }
     await this.prisma.adminUser.update({ where: { id }, data });
     return this.findOne(id);

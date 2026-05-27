@@ -3,7 +3,7 @@ import {
   App, Table, Button, Modal, Form, Input, Select, Space,
   Popconfirm, Tag, Typography, Tooltip, Tree,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, SafetyOutlined, MailOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, SafetyOutlined, MailOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import api from '../api';
 
 interface User {
@@ -117,6 +117,16 @@ export default function UsersPage() {
       messageApi.success('激活邮件已发送');
     } catch (err: any) {
       messageApi.error(err?.response?.data?.message || '发送激活邮件失败');
+    }
+  };
+
+  const handleActivate = async (id: string) => {
+    try {
+      await api.put(`/users/${id}`, { activated: true });
+      messageApi.success('已手动激活该用户');
+      load();
+    } catch (err: any) {
+      messageApi.error(err?.response?.data?.message || '激活失败');
     }
   };
 
@@ -234,6 +244,11 @@ export default function UsersPage() {
             <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
             {!r.activated && r.email && (
               <Tooltip title="发送激活邮件"><Button size="small" icon={<MailOutlined />} onClick={() => handleSendActivation(r.id)} /></Tooltip>
+            )}
+            {!r.activated && (
+              <Popconfirm title="确认手动激活此用户？" onConfirm={() => handleActivate(r.id)}>
+                <Tooltip title="置为激活"><Button size="small" icon={<CheckCircleOutlined />} /></Tooltip>
+              </Popconfirm>
             )}
             {r.role === 'user' && (
               <Tooltip title="权限"><Button size="small" icon={<SafetyOutlined />} onClick={() => openPermModal(r)} /></Tooltip>

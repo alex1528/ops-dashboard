@@ -181,7 +181,7 @@ Content-Type: application/json
 
 ## 邮件激活账号
 
-用户注册或由管理员创建（未设置密码）后，需通过激活邮件完成账号激活方可登录。
+用户注册或由管理员创建（未设置密码）后，需通过激活邮件完成账号激活方可登录。管理员创建用户时若提供了密码，用户自动标记为已激活（首次登录仍需强制改密）。
 
 ### `AdminUser` 激活相关字段
 
@@ -194,18 +194,20 @@ Content-Type: application/json
 
 ### 激活流程
 
-1. **管理员创建用户**（密码可选）→ 用户 `activated=false`；管理员通过 `POST /api/users/:id/send-activation` 发送激活邮件
-2. **用户自助注册**（非首个用户）→ `activated=false`，自动发送激活邮件（需 SMTP 配置且提供邮箱）
-3. **首个注册用户（管理员）**→ `activated=true`，直接登录
-4. 用户点击邮件中的激活链接 → 前端 `/activate?token=xxx`
-5. 前端调用 `GET /api/auth/activate-check?token=xxx` 验证令牌
-6. 用户设置密码后调用 `POST /api/auth/activate` → 设置密码、`activated=true`、`activationToken=''`、`mustSetupMfa=true`
+1. **管理员创建用户（带密码）**→ `activated=true`、`mustChangePassword=true`，用户首次登录需改密
+2. **管理员创建用户（不带密码）**→ `activated=false`；管理员通过 `POST /api/users/:id/send-activation` 发送激活邮件，或通过 `PUT /api/users/:id` 传 `{ activated: true }` 手动激活
+3. **用户自助注册**（非首个用户）→ `activated=false`，自动发送激活邮件（需 SMTP 配置且提供邮箱）
+4. **首个注册用户（管理员）**→ `activated=true`，直接登录
+5. 用户点击邮件中的激活链接 → 前端 `/activate?token=xxx`
+6. 前端调用 `GET /api/auth/activate-check?token=xxx` 验证令牌
+7. 用户设置密码后调用 `POST /api/auth/activate` → 设置密码、`activated=true`、`activationToken=''`、`mustSetupMfa=true`
 
 ### API
 
 | Method | Path | Auth | 说明 |
 | --- | --- | --- | --- |
 | `POST` | `/api/users/:id/send-activation` | 管理员 | 生成/重置 activationToken 并发送激活邮件 |
+| `PUT` | `/api/users/:id` | 管理员 | Body 含 `{ activated: true }` 时手动激活用户 |
 | `GET` | `/api/auth/activate-check?token=xxx` | 公开 | 验证令牌有效性，返回 `{ valid, username }` |
 | `POST` | `/api/auth/activate` | 公开 | Body: `{ token, password }`，设置密码并激活 |
 
