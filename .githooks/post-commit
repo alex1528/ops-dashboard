@@ -25,8 +25,12 @@ if git tag --points-at HEAD 2>/dev/null | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; 
     exit 0
 fi
 
-# 取最新的语义化版本 tag（按版本号排序，而非字典序）
-last_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname 2>/dev/null | head -1)"
+# 取最新的语义化版本 tag
+# 先用宽松 glob 候选，再用严格正则过滤，确保只匹配 vMAJOR.MINOR.PATCH（纯十进制数字，无后缀）
+last_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null \
+    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+    | sort -t. -k1,1rn -k2,2rn -k3,3rn \
+    | head -1)"
 
 if [ -n "$last_tag" ]; then
     base_version="${last_tag#v}"
@@ -34,12 +38,17 @@ else
     base_version="0.0.0"
 fi
 
-# 解析 major.minor.patch
+# 解析 major.minor.patch（严格十进制整数）
 IFS='.' read -r major minor patch <<EOF
 $base_version
 EOF
 
-# patch 递增，10 进制进位到 minor / major
+# 确保变量为有效十进制整数，否则归零
+case "$major" in ''|*[!0-9]*) major=0 ;; esac
+case "$minor" in ''|*[!0-9]*) minor=0 ;; esac
+case "$patch" in ''|*[!0-9]*) patch=0 ;; esac
+
+# patch 递增，十进制进位到 minor / major（每满 10 进 1）
 patch=$((patch + 1))
 if [ "$patch" -ge 10 ]; then
     patch=0

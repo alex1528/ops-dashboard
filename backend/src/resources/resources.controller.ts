@@ -95,10 +95,10 @@ export class ResourcesController {
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateResourceDto, @Req() req: any) {
-    // Non-admin can only update own resources
+    // Non-admin can update own resources or resources they have been granted access to
     if (req.user?.role !== 'admin') {
-      const resource = await this.resources.findOne(id);
-      if ((resource as any).ownerId !== req.user?.id) {
+      const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
+      if (!hasAccess) {
         throw new ForbiddenException('无权修改该资源');
       }
     }
@@ -109,10 +109,10 @@ export class ResourcesController {
 
   @Post(':id/credential/clear')
   async clearCredential(@Param('id') id: string, @Body() dto: ClearCredentialFieldsDto, @Req() req: any) {
-    // Non-admin can only clear own resources
+    // Non-admin can clear credentials for own or authorized resources
     if (req.user?.role !== 'admin') {
-      const resource = await this.resources.findOne(id);
-      if ((resource as any).ownerId !== req.user?.id) {
+      const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
+      if (!hasAccess) {
         throw new ForbiddenException('无权操作该资源凭据');
       }
     }
@@ -123,7 +123,7 @@ export class ResourcesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req: any) {
-    // Non-admin can only delete own resources
+    // Non-admin can only delete own resources (not granted resources)
     if (req.user?.role !== 'admin') {
       const resource = await this.resources.findOne(id);
       if ((resource as any).ownerId !== req.user?.id) {

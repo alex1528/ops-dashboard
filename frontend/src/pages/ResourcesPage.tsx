@@ -208,7 +208,7 @@ function SortableResourceRow({
 /* ===================== Main Page ===================== */
 export default function ResourcesPage() {
   const { message: messageApi } = App.useApp();
-  const { user } = useAuth();
+  const { user, hasResourceAccess } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -256,8 +256,8 @@ export default function ResourcesPage() {
   useEffect(() => { load(); loadGroups(); }, []);
 
   const isAdmin = user?.role === 'admin';
-  // Admin can manage all; regular user can only manage their own resources
-  const canManage = (r: Resource) => isAdmin || r.ownerId === user?.id;
+  // Admin can manage all; regular user can manage own resources + authorized resources
+  const canManage = (r: Resource) => isAdmin || hasResourceAccess(r.id, r.group, r.ownerId);
 
   // 按分组聚合，保持 groupSortOrder 排序
   const grouped: GroupData[] = useMemo(() => {
