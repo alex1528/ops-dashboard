@@ -65,6 +65,16 @@ export class ResourcesService {
     };
   }
 
+  /** Raw resource record (with ownerId) for permission checks */
+  async findOneRaw(id: string) {
+    return this.prisma.resource.findUnique({ where: { id } });
+  }
+
+  /** Raw credential record for permission checks */
+  async getCredentialRaw(resourceId: string) {
+    return this.prisma.credential.findUnique({ where: { resourceId } });
+  }
+
   async getDecryptedCredential(resourceId: string) {
     const cred = await this.prisma.credential.findUnique({ where: { resourceId } });
     if (!cred) return { exists: false, username: '', password: '', extra: '', privateKey: '', sshEnabled: false };

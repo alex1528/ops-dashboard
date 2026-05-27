@@ -95,11 +95,36 @@ export class ResourcesController {
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateResourceDto, @Req() req: any) {
-    // Non-admin can update own resources or resources they have been granted access to
+    // Non-admin permission logic
     if (req.user?.role !== 'admin') {
-      const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
-      if (!hasAccess) {
-        throw new ForbiddenException('无权修改该资源');
+      const resource = await this.resources.findOneRaw(id);
+      if (!resource) throw new ForbiddenException('资源不存在');
+      const isOwner = resource.ownerId === req.user?.id;
+
+      if (!isOwner) {
+        // Authorized (non-owner) user: restricted credential-only access
+        const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
+        if (!hasAccess) throw new ForbiddenException('无权修改该资源');
+
+        // Check if web credentials are already enabled
+        const existingCred = await this.resources.getCredentialRaw(id);
+        const webAlreadyEnabled = !!(existingCred && (existingCred.username || existingCred.password));
+
+        if (webAlreadyEnabled) {
+          // Web credentials already filled — no further credential modification allowed
+          throw new ForbiddenException('该资源凭据已录入，无权修改');
+        }
+
+        // Strip all non-credential fields — authorized user can only set web credentials
+        const allowedDto: UpdateResourceDto = {};
+        if (dto.credWebEnabled !== undefined) allowedDto.credWebEnabled = dto.credWebEnabled;
+        if (dto.credUsername !== undefined) allowedDto.credUsername = dto.credUsername;
+        if (dto.credPassword !== undefined) allowedDto.credPassword = dto.credPassword;
+        if (dto.credExtra !== undefined) allowedDto.credExtra = dto.credExtra;
+
+        const result = await this.resources.update(id, allowedDto);
+        await this.audit.log(req.user?.id, 'resource.update', id, 'credential_fill', req.ip);
+        return result;
       }
     }
     const result = await this.resources.update(id, dto);
@@ -109,10 +134,10 @@ export class ResourcesController {
 
   @Post(':id/credential/clear')
   async clearCredential(@Param('id') id: string, @Body() dto: ClearCredentialFieldsDto, @Req() req: any) {
-    // Non-admin can clear credentials for own or authorized resources
+    // Non-admin: only owners can clear credentials (authorized users cannot)
     if (req.user?.role !== 'admin') {
-      const hasAccess = await this.users.hasResourceAccess(req.user?.id, id);
-      if (!hasAccess) {
+      const resource = await this.resources.findOneRaw(id);
+      if (!resource || resource.ownerId !== req.user?.id) {
         throw new ForbiddenException('无权操作该资源凭据');
       }
     }

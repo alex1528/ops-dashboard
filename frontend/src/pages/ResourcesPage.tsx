@@ -53,7 +53,7 @@ interface GroupData {
 
 /* ===================== Sortable Group Component ===================== */
 function SortableGroup({
-  groupData, onResourceDragEnd, onEdit, onView, onCheck, onDelete, canManage, isAdmin,
+  groupData, onResourceDragEnd, onEdit, onView, onCheck, onDelete, canManage, isOwnerOrAdmin, isAdmin,
 }: {
   groupData: GroupData;
   onResourceDragEnd: (group: string, oldIndex: number, newIndex: number) => void;
@@ -62,6 +62,7 @@ function SortableGroup({
   onCheck: (id: string) => void;
   onDelete: (id: string) => void;
   canManage: (r: Resource) => boolean;
+  isOwnerOrAdmin: (r: Resource) => boolean;
   isAdmin: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -123,6 +124,7 @@ function SortableGroup({
                 onCheck={onCheck}
                 onDelete={onDelete}
                 canManage={canManage(r)}
+                canFullManage={isOwnerOrAdmin(r)}
               />
             ))}
           </SortableContext>
@@ -134,7 +136,7 @@ function SortableGroup({
 
 /* ===================== Sortable Resource Row ===================== */
 function SortableResourceRow({
-  resource: r, onEdit, onView, onCheck, onDelete, canManage,
+  resource: r, onEdit, onView, onCheck, onDelete, canManage, canFullManage,
 }: {
   resource: Resource;
   onEdit: (r: Resource) => void;
@@ -142,6 +144,7 @@ function SortableResourceRow({
   onCheck: (id: string) => void;
   onDelete: (id: string) => void;
   canManage: boolean;
+  canFullManage: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: r.id });
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +176,7 @@ function SortableResourceRow({
 
   return (
     <div ref={setRowContainerRef} className="resources-row">
-      {canManage && (
+      {canFullManage && (
         <HolderOutlined
           {...attributes}
           {...listeners}
@@ -194,8 +197,8 @@ function SortableResourceRow({
       <Space size="small" className="resources-row-actions">
         {canManage && <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => onEdit(r)} /></Tooltip>}
         <Tooltip title="查看凭据"><Button size="small" icon={<EyeOutlined />} onClick={() => onView(r)} /></Tooltip>
-        {canManage && <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => onCheck(r.id)} /></Tooltip>}
-        {canManage && (
+        {canFullManage && <Tooltip title="立即检测"><Button size="small" icon={<ThunderboltOutlined />} onClick={() => onCheck(r.id)} /></Tooltip>}
+        {canFullManage && (
           <Popconfirm title="确认删除？" onConfirm={() => onDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -222,6 +225,7 @@ export default function ResourcesPage() {
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [sshSwitchEnabled, setSshSwitchEnabled] = useState(false);
   const [webLoginSwitchEnabled, setWebLoginSwitchEnabled] = useState(false);
+  const [credentialFillOnly, setCredentialFillOnly] = useState(false); // authorized user filling credentials only
   const [groupOptions, setGroupOptions] = useState<{ value: string }[]>([]);
   const [subGroupOptions, setSubGroupOptions] = useState<{ value: string }[]>([]);
   const [allGroupData, setAllGroupData] = useState<{ groups: string[]; subGroups: Record<string, string[]> }>({ groups: [], subGroups: {} });
@@ -256,8 +260,17 @@ export default function ResourcesPage() {
   useEffect(() => { load(); loadGroups(); }, []);
 
   const isAdmin = user?.role === 'admin';
-  // Admin can manage all; regular user can manage own resources + authorized resources
-  const canManage = (r: Resource) => isAdmin || hasResourceAccess(r.id, r.group, r.ownerId);
+  // Owner or admin: full management rights
+  const isOwnerOrAdmin = (r: Resource) => isAdmin || r.ownerId === user?.id;
+  // Authorized (non-owner) user: can only fill web credentials if not already filled
+  const canFillCredential = (r: Resource) => {
+    if (isOwnerOrAdmin(r)) return false; // owners use full edit mode
+    if (!hasResourceAccess(r.id, r.group, r.ownerId)) return false;
+    // Can fill only if web credentials not yet filled
+    return !(r.credential && r.credential.hasPassword);
+  };
+  // Combined: show edit button for owners/admins + show credential fill button for authorized users
+  const canManage = (r: Resource) => isOwnerOrAdmin(r) || canFillCredential(r);
 
   // 按分组聚合，保持 groupSortOrder 排序
   const grouped: GroupData[] = useMemo(() => {
@@ -335,6 +348,7 @@ export default function ResourcesPage() {
 
   const openCreate = () => {
     setEditingId(null);
+    setCredentialFillOnly(false);
     form.resetFields();
     setSshSwitchEnabled(false);
     setWebLoginSwitchEnabled(false);
@@ -345,6 +359,9 @@ export default function ResourcesPage() {
 
   const openEdit = async (r: Resource) => {
     setEditingId(r.id);
+    // Determine if this is a credential-fill-only mode (authorized non-owner user)
+    const fillOnly = !isOwnerOrAdmin(r);
+    setCredentialFillOnly(fillOnly);
     form.resetFields();
     setSshSwitchEnabled(false);
     setWebLoginSwitchEnabled(false);
@@ -376,6 +393,25 @@ export default function ResourcesPage() {
     const values = await form.validateFields();
     // credWebLoginEnabled is only a UI toggle, not a backend field
     delete values.credWebLoginEnabled;
+
+    // Credential-fill-only mode: only send web credential fields
+    if (credentialFillOnly) {
+      const credValues: Record<string, any> = { credWebEnabled: webLoginSwitchEnabled };
+      if (webLoginSwitchEnabled) {
+        if (values.credUsername) credValues.credUsername = values.credUsername;
+        if (values.credPassword) credValues.credPassword = values.credPassword;
+        if (values.credExtra) credValues.credExtra = values.credExtra;
+      }
+      try {
+        await api.put(`/resources/${editingId}`, credValues);
+        messageApi.success('凭据已保存');
+        setModalOpen(false);
+        load();
+      } catch (err: any) {
+        messageApi.error(err?.response?.data?.message || '保存失败');
+      }
+      return;
+    }
 
     // Always send the master switches so backend can handle credential deletion
     values.credWebEnabled = webLoginSwitchEnabled;
@@ -509,6 +545,7 @@ export default function ResourcesPage() {
                 onCheck={handleCheck}
                 onDelete={handleDelete}
                 canManage={canManage}
+                isOwnerOrAdmin={isOwnerOrAdmin}
                 isAdmin={isAdmin}
               />
             ))}
@@ -522,7 +559,7 @@ export default function ResourcesPage() {
       </Spin>
 
       <Modal
-        title={editingId ? '编辑资源' : '新增资源'}
+        title={credentialFillOnly ? '录入Web系统凭据' : (editingId ? '编辑资源' : '新增资源')}
         open={modalOpen}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
@@ -530,39 +567,43 @@ export default function ResourcesPage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-            <Input placeholder="如: Beszel业务监控" />
-          </Form.Item>
-          <Form.Item name="url" label="URL" rules={[{ required: true }]}>
-            <Input placeholder="http://192.168.x.x:8090/" />
-          </Form.Item>
-          <Form.Item name="group" label="分组">
-            <AutoComplete
-              placeholder="输入或选择分组"
-              options={groupOptions}
-              filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
-              onChange={handleGroupChange}
-            />
-          </Form.Item>
-          <Form.Item name="subGroup" label="子分组">
-            <AutoComplete
-              placeholder="可选，留空则不分子组"
-              options={subGroupOptions}
-              filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
-            />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          {!editingId ? null : (
-            <Form.Item name="enabled" label="启用" valuePropName="checked">
-              <Switch />
-            </Form.Item>
+          {!credentialFillOnly && (
+            <>
+              <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+                <Input placeholder="如: Beszel业务监控" />
+              </Form.Item>
+              <Form.Item name="url" label="URL" rules={[{ required: true }]}>
+                <Input placeholder="http://192.168.x.x:8090/" />
+              </Form.Item>
+              <Form.Item name="group" label="分组">
+                <AutoComplete
+                  placeholder="输入或选择分组"
+                  options={groupOptions}
+                  filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                  onChange={handleGroupChange}
+                />
+              </Form.Item>
+              <Form.Item name="subGroup" label="子分组">
+                <AutoComplete
+                  placeholder="可选，留空则不分子组"
+                  options={subGroupOptions}
+                  filterOption={(input, option) => (option?.value ?? '').toLowerCase().includes(input.toLowerCase())}
+                />
+              </Form.Item>
+              <Form.Item name="description" label="描述">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+              {!editingId ? null : (
+                <Form.Item name="enabled" label="启用" valuePropName="checked">
+                  <Switch />
+                </Form.Item>
+              )}
+              <Form.Item name="healthCheckEnabled" label="健康检查" valuePropName="checked"
+                tooltip="关闭后不执行定时探测，状态始终显示为正常">
+                <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+              </Form.Item>
+            </>
           )}
-          <Form.Item name="healthCheckEnabled" label="健康检查" valuePropName="checked"
-            tooltip="关闭后不执行定时探测，状态始终显示为正常">
-            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-          </Form.Item>
 
           <Typography.Title level={5} className="resources-section-title">
             Web系统账号信息(加密存储)
@@ -596,69 +637,73 @@ export default function ResourcesPage() {
             </>
           )}
 
-          <Typography.Title level={5} className="resources-section-title">
-            Linux SSH凭据(Web Terminal)
-          </Typography.Title>
-          <Typography.Text type="secondary" className="resources-section-note">
-            用于通过浏览器内置 Web Terminal 以 SSH 方式登录目标 Linux amd64 服务器
-          </Typography.Text>
-          <Form.Item
-            name="credSshEnabled"
-            label="启用Web Terminal(SSH)"
-            valuePropName="checked"
-            tooltip="开启后，已登录用户可在卡片上点击 SSH 按钮直接通过浏览器登录该服务器"
-          >
-            <Switch
-              checkedChildren="已启用"
-              unCheckedChildren="未启用"
-              onChange={(v) => setSshSwitchEnabled(v)}
-            />
-          </Form.Item>
-          {sshSwitchEnabled && (
+          {!credentialFillOnly && (
             <>
+              <Typography.Title level={5} className="resources-section-title">
+                Linux SSH凭据(Web Terminal)
+              </Typography.Title>
+              <Typography.Text type="secondary" className="resources-section-note">
+                用于通过浏览器内置 Web Terminal 以 SSH 方式登录目标 Linux amd64 服务器
+              </Typography.Text>
               <Form.Item
-                name="credPrivateKey"
-                label="私钥(PEM)"
-                tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
+                name="credSshEnabled"
+                label="启用Web Terminal(SSH)"
+                valuePropName="checked"
+                tooltip="开启后，已登录用户可在卡片上点击 SSH 按钮直接通过浏览器登录该服务器"
               >
-                <Input.TextArea
-                  rows={4}
-                  placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
-                  className="resources-private-key-input"
+                <Switch
+                  checkedChildren="已启用"
+                  unCheckedChildren="未启用"
+                  onChange={(v) => setSshSwitchEnabled(v)}
                 />
               </Form.Item>
-              {/* 隐藏的文件输入，用于上传私钥文件 */}
-              <input
-                ref={privateKeyFileRef}
-                type="file"
-                accept=".pem,.key,.txt"
-                aria-label="上传 PEM 私钥文件"
-                title="上传 PEM 私钥文件"
-                className="resources-hidden-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    const content = ev.target?.result as string;
-                    form.setFieldValue('credPrivateKey', content);
-                    messageApi.success(`已读取文件：${file.name}`);
-                  };
-                  reader.readAsText(file);
-                  e.target.value = ''; // 允许重复选择同一文件
-                }}
-              />
-              <Form.Item label=" " colon={false}>
-                <Button
-                  icon={<UploadOutlined />}
-                  onClick={() => privateKeyFileRef.current?.click()}
-                >
-                  上传私钥文件
-                </Button>
-                <Text type="secondary" className="resources-upload-hint">
-                  支持 .pem / .key / .txt 格式
-                </Text>
-              </Form.Item>
+              {sshSwitchEnabled && (
+                <>
+                  <Form.Item
+                    name="credPrivateKey"
+                    label="私钥(PEM)"
+                    tooltip="支持上传文件或直接粘贴 PEM 内容，留空则不更新"
+                  >
+                    <Input.TextArea
+                      rows={4}
+                      placeholder="粘贴 PEM 私钥内容，或点击下方按钮上传文件，留空则不更新"
+                      className="resources-private-key-input"
+                    />
+                  </Form.Item>
+                  {/* 隐藏的文件输入，用于上传私钥文件 */}
+                  <input
+                    ref={privateKeyFileRef}
+                    type="file"
+                    accept=".pem,.key,.txt"
+                    aria-label="上传 PEM 私钥文件"
+                    title="上传 PEM 私钥文件"
+                    className="resources-hidden-input"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const content = ev.target?.result as string;
+                        form.setFieldValue('credPrivateKey', content);
+                        messageApi.success(`已读取文件：${file.name}`);
+                      };
+                      reader.readAsText(file);
+                      e.target.value = ''; // 允许重复选择同一文件
+                    }}
+                  />
+                  <Form.Item label=" " colon={false}>
+                    <Button
+                      icon={<UploadOutlined />}
+                      onClick={() => privateKeyFileRef.current?.click()}
+                    >
+                      上传私钥文件
+                    </Button>
+                    <Text type="secondary" className="resources-upload-hint">
+                      支持 .pem / .key / .txt 格式
+                    </Text>
+                  </Form.Item>
+                </>
+              )}
             </>
           )}
         </Form>
