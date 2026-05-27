@@ -171,7 +171,7 @@ export default function Dashboard() {
               {items.map((r) => (
                 <Col key={r.id} xs={24} sm={12} md={8} lg={6}>
                   <Card
-                    styles={{ body: { padding: 16 } }}
+                    className="dashboard-card"
                   >
                     <div className="dashboard-card-top">
                       <div className="dashboard-card-info">

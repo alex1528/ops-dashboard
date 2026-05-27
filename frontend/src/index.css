@@ -111,6 +111,18 @@ body {
 .dashboard-group-title {
   margin-bottom: 12px;
 }
+/* Uniform card sizing */
+.dashboard-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-card > .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
 .dashboard-card-top {
   display: flex;
   justify-content: space-between;
@@ -124,10 +136,17 @@ body {
   font-size: 16px;
   display: block;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dashboard-card-url {
   font-size: 12px;
   word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .dashboard-card-stats {
   margin-top: 12px;
@@ -138,11 +157,17 @@ body {
 }
 .dashboard-card-desc {
   font-size: 12px;
-  display: block;
   margin-top: 8px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .dashboard-card-footer {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -325,6 +350,14 @@ body {
 }
 .status-card {
   border-radius: 8px !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.status-card > .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .status-icon {
   font-size: 20px;
@@ -373,11 +406,17 @@ body {
 }
 .status-description {
   font-size: 11px;
-  display: block;
   margin-top: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .status-actions {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
   display: flex;
   justify-content: flex-end;
   gap: 4px;
