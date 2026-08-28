@@ -6,6 +6,7 @@ import api from '../api';
 /**
  * /oidc/callback — 接收后端 OIDC 流程回传的 JWT token，
  * 写入 localStorage 并跳转到管理后台。
+ * 也处理后端重定向过来的错误信息。
  */
 export default function OidcCallback() {
   const [searchParams] = useSearchParams();
@@ -13,6 +14,13 @@ export default function OidcCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // 检查是否是错误回调
+    const errorMsg = searchParams.get('error');
+    if (errorMsg) {
+      setError(errorMsg);
+      return;
+    }
+
     const token = searchParams.get('token');
     if (!token) {
       setError('未收到有效的认证令牌');
@@ -24,7 +32,8 @@ export default function OidcCallback() {
 
     api.get('/auth/me')
       .then(() => {
-        nav('/admin', { replace: true });
+        // 成功后跳转，避免 axios 拦截器抢先 redirect
+        window.location.href = '/admin';
       })
       .catch(() => {
         localStorage.removeItem('token');

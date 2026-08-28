@@ -43,8 +43,9 @@ export class OidcService implements OnModuleInit {
       this.logger.warn('OIDC_ISSUER not configured — OIDC login disabled');
       return;
     }
+    const normalizedIssuer = issuer.replace(/\/+$/, '');
     this.config = {
-      issuer,
+      issuer: normalizedIssuer,
       clientId: process.env.OIDC_CLIENT_ID || '',
       clientSecret: process.env.OIDC_CLIENT_SECRET || '',
       redirectUri: process.env.OIDC_REDIRECT_URI || '',
