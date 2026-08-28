@@ -16,6 +16,7 @@ import AboutPage from './pages/AboutPage';
 import TerminalPage from './pages/TerminalPage';
 import ForceChangePassword from './pages/ForceChangePassword';
 import ForceMfaSetup from './pages/ForceMfaSetup';
+import OidcCallback from './pages/OidcCallback';
 
 // 路由层强制改密守卫：当登录用户带 mustChangePassword=true 标志且
 // 当前路径不在白名单（/force-change-password、/login）时，强制重定向到改密页，
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/activate" element={<ActivatePage />} />
           <Route path="/force-change-password" element={<ForceChangePassword />} />
           <Route path="/force-setup-mfa" element={<ForceMfaSetup />} />
+          <Route path="/oidc/callback" element={<OidcCallback />} />
           <Route path="/terminal/:id" element={<TerminalPage />} />
         <Route
           path="/admin/*"

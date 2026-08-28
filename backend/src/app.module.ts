@@ -14,6 +14,7 @@ import { MfaModule } from './mfa/mfa.module';
 import { MailModule } from './mail/mail.module';
 import { SystemModule } from './system/system.module';
 import { SshModule } from './ssh/ssh.module';
+import { OidcModule } from './oidc/oidc.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SshModule } from './ssh/ssh.module';
     MailModule,
     SystemModule,
     SshModule,
+    OidcModule,
   ],
 })
 export class AppModule {}

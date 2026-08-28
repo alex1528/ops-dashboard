@@ -128,6 +128,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 公开注册：管理员可在「系统设置」页面开启/关闭公开注册开关（默认关闭）；开启后登录页显示注册入口，新用户自行注册为普通用户角色；系统无任何用户时，第一个注册者自动成为管理员（兼容 `.env` 中 `ADMIN_USERNAME`/`ADMIN_PASSWORD` 约束）；非首个用户注册后需通过激活邮件完成账号激活方可登录
 - ✅ 邮件激活账号：管理员创建用户时密码可选——提供密码则自动标记为已激活（首次登录仍需强制改密），未设置密码则需通过激活邮件设置密码并激活；自助注册用户同样需邮件激活（首个管理员用户除外）；用户管理页面显示激活状态，支持管理员手动重新发送激活邮件或直接「置为激活」；激活流程包括设置密码（≥8位，含字母和数字）并强制绑定 MFA；未激活用户无法登录
 - ✅ 资源权限管理：管理员可在「用户管理」页面为普通用户配置资源访问权限，支持按分组授权（授权整个分组下全部资源）或按单个资源授权；权限采用树形多选 UI（分组→资源层级结构）；被授权的资源，普通用户可查看凭据，且仅在「启用Web系统账号凭据」开关（`Credential.webEnabled`）尚未开启时可首次启用并填写用户名/密码/附加信息（一旦开关已被任何人开启，普通用户即不再具备启用和录入权限），不可修改资源基本信息或 SSH 配置，不可删除资源；前端编辑权限直接依据后端返回的资源列表可见性判定（后端 `GET /resources` 已按权限过滤），无需前端二次校验 `permissions` 数组；后端 `PUT /resources/:id` 对非所有者用户检查 `Credential.webEnabled` 字段决定是否允许凭据录入，三重权限校验防止越权访问
+- ✅ OIDC 单点登录（Authentik）：支持通过 Authentik 进行 OIDC 授权码登录，与用户名/密码登录双模式并存；OIDC 用户首次登录时自动创建本地账号，按 Authentik 组自动映射 admin/user 角色；OIDC 用户跳过强制改密和强制绑定 MFA 流程；不配置 OIDC 环境变量时该功能自动禁用，不影响现有登录方式
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容；新用户首次登录改密后强制绑定 MFA（`mustSetupMfa` 标志），历史未启用 MFA 的用户也会被强制设置
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
 - ✅ 关于页面：「关于」页面展示系统版本号（取自 git tag）、技术栈、功能模块等信息
@@ -171,6 +172,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `/activate` | 账号激活页（通过邮件链接访问） | 否 |
 | `/force-change-password` | 首次登录强制修改密码页 | 是 |
 | `/force-setup-mfa` | 强制绑定 MFA 两步验证页 | 是 |
+| `/oidc/callback` | OIDC 登录回调页（接收 JWT 令牌） | 否 |
 | `/admin/resources` | 资源管理 | 是 |
 | `/admin/users` | 用户管理 | 是（仅管理员） |
 | `/admin/settings` | 系统设置（注册开关等） | 是（仅管理员） |
@@ -193,6 +195,9 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 | `POST` | `/api/mfa/setup` | 生成 MFA 密钥和二维码 | 是 |
 | `POST` | `/api/mfa/verify` | 验证并启用 MFA | 是 |
 | `POST` | `/api/mfa/disable` | 禁用 MFA | 是 |
+| `GET` | `/api/oidc/status` | 查询 OIDC 登录是否可用 | 否 |
+| `GET` | `/api/oidc/login` | 重定向至 Authentik 授权页 | 否 |
+| `GET` | `/api/oidc/callback` | OIDC 回调：code 换 token → 签发 JWT → 重定向前端 | 否 |
 | `GET` | `/api/system/version` | 获取系统版本号 | 否 |
 | `GET` | `/api/system/settings/allow_registration` | 查询是否允许公开注册 | 否 |
 | `PUT` | `/api/system/settings/allow_registration` | 设置公开注册开关 | 是（**仅管理员**） |
@@ -297,6 +302,13 @@ chmod +x clear-credential.sh
 | `SMTP_USER` | (empty) | SMTP 登录用户 |
 | `SMTP_PASS` | (empty) | SMTP 登录密码 |
 | `SMTP_FROM` | (SMTP_USER) | 发件人地址 |
+| `OIDC_ISSUER` | (empty) | Authentik OpenID Provider 的 Issuer URL，留空则禁用 OIDC |
+| `OIDC_CLIENT_ID` | (empty) | OAuth2 Client ID |
+| `OIDC_CLIENT_SECRET` | (empty) | OAuth2 Client Secret（Confidential 类型） |
+| `OIDC_REDIRECT_URI` | (empty) | 回调地址，须与 Authentik 中配置完全一致 |
+| `OIDC_ADMIN_GROUP` | `ops-admin` | Authentik 中映射为 admin 角色的组名 |
+| `OIDC_SCOPES` | `openid profile email` | 请求的 OIDC 作用域 |
+| `OIDC_FRONTEND_URL` | (empty) | 前端基础 URL（留空使用相对路径） |
 | `APP_VERSION` | `dev` | 系统版本号（Docker 构建时通过 build arg 注入） |
 
 ### 手动操作
@@ -332,6 +344,7 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 - **公开注册用户**：通过 `/api/auth/register` 自助注册的用户 `mustChangePassword` 显式设为 `false`，注册后需通过激活邮件完成激活（首个管理员用户除外，自动激活并直接登录）
 - **管理员后台创建/重置密码**：`UsersService.create` 与 `UsersService.update`（携带 `password` 字段时）会将目标用户的 `mustChangePassword` 翻转为 `true`，触发首次登录强制改密流程
 - **邮件激活字段**：新增 `AdminUser.activated`（默认 `false`）和 `AdminUser.activationToken`（默认空字符串）；迁移时所有存量用户的 `activated` 回填为 `true`，不影响已有账号登录；管理员创建用户时密码可选，未设置密码的用户必须通过激活邮件设置密码后方可登录
+- **OIDC 字段**：新增 `AdminUser.oidcSub`（默认空字符串）+ 索引；迁移时所有存量用户的 `oidcSub` 为空，不影响现有功能；OIDC 首次登录时自动关联或创建用户
 
 ## 故障排查
 
@@ -389,6 +402,77 @@ SMTP_FROM=ops@example.com
 ```
 
 未配置 SMTP 时，邮件功能自动禁用，不影响其他功能正常运行。
+
+## OIDC 单点登录（Authentik）
+
+支持通过 [Authentik](https://goauthentik.io/) 进行 OpenID Connect 授权码登录，与用户名/密码登录**双模式并存**。不配置 OIDC 环境变量时该功能自动禁用。
+
+### 功能特性
+
+- OIDC 用户首次登录时自动创建本地账号（无需管理员预先创建）
+- 按 Authentik 组自动映射角色：属于 `OIDC_ADMIN_GROUP`（默认 `ops-admin`）组的用户为 admin，其余为 user
+- 每次 OIDC 登录都会重新同步角色（Authentik 侧改组后下次登录即生效）
+- OIDC 用户跳过强制改密（`mustChangePassword`）和强制绑定 MFA（`mustSetupMfa`）流程
+- 登录页在 OIDC 可用时自动显示「通过 Authentik 登录」按钮
+
+### Authentik 侧配置
+
+1. **创建 OAuth2/OpenID Provider**：
+   - 名称：`ops-dashboard`（任意）
+   - Client type：**Confidential**
+   - Redirect URIs：`https://your-ops-domain.com/api/oidc/callback`
+   - Scopes：确保包含 `openid`、`profile`、`email`
+   - 在 Scope mapping 中确认包含 **groups** claim（默认的 `authentik default OAuth Mapping: OpenID 'profile'` 已包含 `groups`）
+
+2. **创建 Application**：
+   - 绑定上述 Provider
+   - 记录 Provider 详情页面的 **Client ID** 和 **Client Secret**
+
+3. **创建组**（可选）：
+   - 创建名为 `ops-admin` 的 Group（或自定义名称，对应 `OIDC_ADMIN_GROUP`）
+   - 将需要 admin 权限的用户加入该组
+   - 不在该组中的用户登录后为 user 角色
+
+### .env 配置
+
+```env
+# Authentik Issuer URL（Provider 详情页 → OpenID Configuration Issuer）
+OIDC_ISSUER=https://authentik.example.com/application/o/ops-dashboard
+
+# Provider 的 Client ID / Secret
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=[REDACTED_PASSWORD]
+# 回调地址（必须与 Authentik Redirect URI 完全一致）
+OIDC_REDIRECT_URI=https://your-ops-domain.com/api/oidc/callback
+
+# 映射为 admin 角色的 Authentik 组名（默认 ops-admin）
+OIDC_ADMIN_GROUP=ops-admin
+
+# 请求的 scope（需包含 groups 以获取组信息）
+OIDC_SCOPES=openid profile email
+
+# 前端 URL（回调后重定向用；留空则使用相对路径，适用于前后端同域部署）
+OIDC_FRONTEND_URL=
+```
+
+### 登录流程
+
+```
+用户点击「通过 Authentik 登录」
+  → GET /api/oidc/login（生成 state，302 到 Authentik 授权页）
+  → 用户在 Authentik 完成认证
+  → Authentik 回调 GET /api/oidc/callback?code=xxx&state=xxx
+  → 后端用 code 换 access_token → 获取 userinfo（含 groups）
+  → 查找/创建本地用户，按 groups 映射角色
+  → 签发本地 JWT，302 重定向到前端 /oidc/callback?token=[REDACTED_PARAM]
+  → 前端写入 localStorage，跳转 /admin
+```
+
+### 用户匹配规则
+
+1. 优先按 OIDC `sub`（Authentik 用户 ID）匹配已关联的本地用户
+2. 若无关联，尝试按 `preferred_username` 或 `email` 匹配已有本地用户并自动关联
+3. 若均无匹配，自动创建新用户（`activated=true`，无本地密码，角色按组映射）
 
 ## WebTerminal SSH
 

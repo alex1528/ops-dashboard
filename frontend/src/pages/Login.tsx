@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { App, Button, Card, Form, Input, Typography } from 'antd';
+import { App, Button, Card, Divider, Form, Input, Typography } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
@@ -16,10 +16,16 @@ export default function Login() {
   const [mode, setMode] = useState<'login' | 'register' | 'mfa'>('login');
   const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null);
   const [allowRegistration, setAllowRegistration] = useState(false);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
 
   useEffect(() => {
     api.get('/system/settings/allow_registration')
       .then((res) => setAllowRegistration(res.data.allowRegistration))
+      .catch(() => {});
+
+    // Check if OIDC is available
+    api.get('/oidc/status')
+      .then((res) => setOidcEnabled(res.data.enabled))
       .catch(() => {});
   }, []);
 
@@ -106,6 +112,19 @@ export default function Login() {
               </Button>
             </Form.Item>
           </Form>
+        )}
+        {mode === 'login' && oidcEnabled && (
+          <>
+            <Divider plain style={{ margin: '8px 0 16px' }}>或</Divider>
+            <Button
+              block
+              size="large"
+              onClick={() => { window.location.href = '/api/oidc/login'; }}
+              style={{ marginBottom: 16 }}
+            >
+              通过 Authentik 登录
+            </Button>
+          </>
         )}
         {mode === 'mfa' && (
           <Form onFinish={onMfaSubmit} size="large">

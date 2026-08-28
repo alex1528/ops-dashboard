@@ -29,6 +29,14 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-}
+      # OIDC / Authentik（可选，不配置则 OIDC 登录不启用）
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_REDIRECT_URI=${OIDC_REDIRECT_URI:-}
+      - OIDC_ADMIN_GROUP=${OIDC_ADMIN_GROUP:-ops-admin}
+      - OIDC_SCOPES=${OIDC_SCOPES:-openid profile email}
+      - OIDC_FRONTEND_URL=${OIDC_FRONTEND_URL:-}
     volumes:
       - db-data:/app/data
       - ./backup:/app/backup
