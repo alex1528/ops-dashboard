@@ -498,7 +498,9 @@ OIDC_FRONTEND_URL=
 - **SSH 启用控制**：`Credential.sshEnabled` 字段（默认 `false`），只有管理员显式开启后，前端才显示 SSH 按钮，后端才接受该资源的 SSH 连接请求
 - **SSH 主机**：从资源 `url` 字段解析 hostname（如 `https://ga.anytoken.cloud` → `ga.anytoken.cloud`），端口固定 22
 - **SSH 用户名**：固定 `root`（密码模式下用户可自定义）
-- **PTY 尺寸同步**：前端在建立连接时携带实际终端尺寸（`cols/rows`）初始化 PTY；xterm.js 挂载后立即发送 `ssh:resize` 修正尺寸；若 socket `connect` 事件先于 xterm 渲染触发，则暂存 payload 待 xterm 就绪后再发出，确保 `ls`、`top`、`htop` 等命令输出不错位
+- **PTY 尺寸同步**：前端在建立连接时携带实际终端尺寸（`cols/rows`）初始化 PTY；xterm.js 挂载后立即发送 `ssh:resize` 修正尺寸；若 socket `connect` 事件先于 xterm 渲染触发，则暂存 payload 待 xterm 就绪后再发出；后端对 shell 就绪前到达的 `ssh:resize` 进行缓存，待 PTY 建立后立即应用，确保 `ls`、`top`、`htop` 等命令输出不错位
+- **全屏 TUI 程序支持（vim/htop/top 等）**：PTY 以 `TERM=xterm-256color` 分配；SSH 终端 Modal 设置 `keyboard={false}` + `maskClosable={false}`，避免 Ant Design Modal 拦截 `Escape` 键（vim 退出插入模式、`:q` 退出等关键按键可完整送达远端）；xterm.js 挂载后及连接建立后均显式 `term.focus()` 并点击终端区域可重新聚焦，保证键盘输入持续转发至 SSH 流；同时转发 `onBinary` 二进制输入；连接建立后再次 `fit` + 发送 `ssh:resize`，保证全屏程序获得正确的终端尺寸
+- **焦点守卫（focus guard）**：Ant Design Modal（rc-dialog）在打开动画结束时会聚焦一个隐藏的哨兵元素（`<div tabIndex=0>`），从而抢走 xterm.js 隐藏输入框的键盘焦点，导致按键无法送达 SSH 流、vim 等全屏程序"假死"无法编辑/退出。前端通过 `document` 级 `focusin` 监听，当焦点落在终端外的非交互元素上时立即将焦点交还 xterm；Modal 的 `afterOpenChange` 回调与连接建立后的多次延时 `focus()` 进一步覆盖焦点被抢占的时间窗口；标题栏按钮、凭据表单等交互元素不受影响
 
 ### WebSocket 事件
 

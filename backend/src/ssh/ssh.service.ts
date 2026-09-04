@@ -11,6 +11,8 @@ export class SshService {
   private readonly logger = new Logger(SshService.name);
   /** Map from socket.id → SshSession */
   private sessions = new Map<string, SshSession>();
+  /** Resize requests that arrive before the shell is ready, keyed by socket.id */
+  private pendingResizes = new Map<string, { cols: number; rows: number }>();
 
   /**
    * Establish an SSH PTY connection.
@@ -46,6 +48,15 @@ export class SshService {
         }
 
         this.sessions.set(socketId, { client, stream });
+
+        // Apply any resize that arrived before the shell was ready
+        const pending = this.pendingResizes.get(socketId);
+        if (pending) {
+          this.pendingResizes.delete(socketId);
+          try {
+            stream.setWindow(pending.rows, pending.cols, 0, 0);
+          } catch { /* ignore */ }
+        }
 
         stream.on('data', (data: Buffer) => onData(data.toString('utf8')));
         stream.stderr.on('data', (data: Buffer) => onData(data.toString('utf8')));
@@ -83,11 +94,15 @@ export class SshService {
     const session = this.sessions.get(socketId);
     if (session?.stream) {
       session.stream.setWindow(rows, cols, 0, 0);
+    } else {
+      // Shell not ready yet — remember the latest size and apply on ready
+      this.pendingResizes.set(socketId, { cols, rows });
     }
   }
 
   /** Disconnect and clean up */
   disconnect(socketId: string): void {
+    this.pendingResizes.delete(socketId);
     const session = this.sessions.get(socketId);
     if (session) {
       try {

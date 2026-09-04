@@ -90,11 +90,17 @@ export default function TerminalPage() {
     term.loadAddon(fitAddon);
     term.open(termRef.current);
     fitAddon.fit();
+    // Give the terminal keyboard focus so input reaches the SSH stream
+    term.focus();
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
     term.onData((data) => {
+      socketRef.current?.emit('ssh:data', { data });
+    });
+    // Forward binary input (e.g. pasted non-text data) as well
+    term.onBinary((data) => {
       socketRef.current?.emit('ssh:data', { data });
     });
 
@@ -123,6 +129,48 @@ export default function TerminalPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ── Focus guard ──────────────────────────────────────────────────────────
+  // Whenever focus lands on a NON-interactive element outside the terminal
+  // (e.g. body or a wrapper div), hand it back to xterm.js's hidden textarea.
+  // Without this, keystrokes never reach the SSH stream and full-screen TUI
+  // apps (vim/htop/top) appear frozen and cannot be edited or exited.
+  // Interactive elements (buttons/inputs/links) are left alone so the top bar
+  // controls and the credential form remain usable.
+  useEffect(() => {
+    const isInteractive = (el: Element | null): boolean =>
+      !!el?.closest('button, input, textarea, select, a, [contenteditable="true"]');
+    const onFocusIn = (e: FocusEvent) => {
+      const term = xtermRef.current;
+      const surface = termRef.current;
+      if (!term || !surface) return;
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (surface.contains(target)) return; // focus inside xterm — fine
+      if (isInteractive(target)) return; // user interacting with a control — fine
+      term.focus(); // reclaim keyboard focus for the terminal
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
+  // ── Once the SSH session is live, re-focus and sync PTY size ────────────
+  // Full-screen TUI apps (vim/htop/top) need correct terminal dimensions and
+  // keyboard focus; re-assert both as soon as the first output arrives.
+  useEffect(() => {
+    if (connState !== 'connected') return;
+    fitAddonRef.current?.fit();
+    xtermRef.current?.focus();
+    const term = xtermRef.current;
+    if (term && socketRef.current?.connected) {
+      socketRef.current.emit('ssh:resize', { cols: term.cols, rows: term.rows });
+    }
+    // Re-assert focus a few times to cover any late focus-stealing.
+    const timers = [150, 400, 800].map((ms) =>
+      window.setTimeout(() => xtermRef.current?.focus(), ms),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [connState]);
 
   // ── Connect SSH ───────────────────────────────────────────────────────────
   const connectSsh = useCallback(
@@ -319,7 +367,11 @@ export default function TerminalPage() {
 
       {/* Terminal */}
       {isTerminalVisible && (
-        <div ref={termRef} className="terminal-page-term" />
+        <div
+          ref={termRef}
+          className="terminal-page-term"
+          onClick={() => xtermRef.current?.focus()}
+        />
       )}
     </div>
   );
