@@ -11,6 +11,8 @@ export class SshService {
   private readonly logger = new Logger(SshService.name);
   /** Map from socket.id → SshSession */
   private sessions = new Map<string, SshSession>();
+  /** Resize requests that arrive before the shell is ready, keyed by socket.id */
+  private pendingResizes = new Map<string, { cols: number; rows: number }>();
 
   /**
    * Establish an SSH PTY connection.
@@ -27,7 +29,7 @@ export class SshService {
     config: ConnectConfig,
     cols: number,
     rows: number,
-    onData: (data: string) => void,
+    onData: (data: Buffer) => void,
     onClose: () => void,
     onError: (msg: string) => void,
   ): void {
@@ -47,8 +49,21 @@ export class SshService {
 
         this.sessions.set(socketId, { client, stream });
 
-        stream.on('data', (data: Buffer) => onData(data.toString('utf8')));
-        stream.stderr.on('data', (data: Buffer) => onData(data.toString('utf8')));
+        // Apply any resize that arrived before the shell was ready
+        const pending = this.pendingResizes.get(socketId);
+        if (pending) {
+          this.pendingResizes.delete(socketId);
+          try {
+            stream.setWindow(pending.rows, pending.cols, 0, 0);
+          } catch { /* ignore */ }
+        }
+
+        // Forward raw bytes without decoding. SSH/TCP can split a multi-byte
+        // UTF-8 sequence (box-drawing chars, status lines, any non-ASCII) across
+        // two chunks; decoding each chunk independently corrupts the stream and
+        // breaks full-screen TUI apps like vim/htop. Let xterm.js decode instead.
+        stream.on('data', (data: Buffer) => onData(data));
+        stream.stderr.on('data', (data: Buffer) => onData(data));
         stream.on('close', () => {
           this.logger.log(`SSH stream closed for socket ${socketId}`);
           this.sessions.delete(socketId);
@@ -70,11 +85,19 @@ export class SshService {
     client.connect(config);
   }
 
-  /** Send keyboard input to the SSH stream */
-  write(socketId: string, data: string): void {
+  /**
+   * Send keyboard input to the SSH stream.
+   *
+   * `binary` marks payloads that came from xterm's `onBinary` channel, which
+   * yields a Latin-1 "binary string" (one char per byte, 0x00-0xFF). Writing
+   * that as UTF-8 inflates every byte >= 0x80 into two bytes, injecting
+   * malformed escape sequences (e.g. X10 mouse reports vim enables on start)
+   * that leave vim stuck mid-sequence swallowing all subsequent keys.
+   */
+  write(socketId: string, data: string, binary = false): void {
     const session = this.sessions.get(socketId);
     if (session?.stream) {
-      session.stream.write(data);
+      session.stream.write(binary ? Buffer.from(data, 'latin1') : data);
     }
   }
 
@@ -83,11 +106,15 @@ export class SshService {
     const session = this.sessions.get(socketId);
     if (session?.stream) {
       session.stream.setWindow(rows, cols, 0, 0);
+    } else {
+      // Shell not ready yet — remember the latest size and apply on ready
+      this.pendingResizes.set(socketId, { cols, rows });
     }
   }
 
   /** Disconnect and clean up */
   disconnect(socketId: string): void {
+    this.pendingResizes.delete(socketId);
     const session = this.sessions.get(socketId);
     if (session) {
       try {

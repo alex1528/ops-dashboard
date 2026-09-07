@@ -18,6 +18,15 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Building ops-dashboard image with version: $VERSION"
 
-APP_VERSION="$VERSION" docker compose build "$@"
+# VITE_SSH_DEBUG 由 docker compose 从仓库根目录 .env 插值到 build.args，
+# 这里仅回显以便确认调试日志是否会被编入前端 bundle。
+SSH_DEBUG_STATE="$(grep -E '^[[:space:]]*VITE_SSH_DEBUG[[:space:]]*=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"' ' || true)"
+if [ "$SSH_DEBUG_STATE" = "1" ]; then
+  echo "  SSH 终端字节调试日志: 已开启 (VITE_SSH_DEBUG=1)"
+else
+  echo "  SSH 终端字节调试日志: 关闭 (在 .env 中设置 VITE_SSH_DEBUG=1 可开启)"
+fi
+
+APP_VERSION="$VERSION" docker-compose build "$@"
 
 echo "Build successful: ops-dashboard:latest ($VERSION)"

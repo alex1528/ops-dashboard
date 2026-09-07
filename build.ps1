@@ -17,6 +17,19 @@ if (-not $version) {
 
 Write-Host "Building ops-dashboard image with version: $version" -ForegroundColor Cyan
 
+# VITE_SSH_DEBUG 由 docker compose 从仓库根目录 .env 插值到 build.args，
+# 这里仅回显以便确认调试日志是否会被编入前端 bundle。
+$sshDebug = '0'
+if (Test-Path .env) {
+  $line = Select-String -Path .env -Pattern '^\s*VITE_SSH_DEBUG\s*=' | Select-Object -Last 1
+  if ($line) { $sshDebug = ($line.Line -replace '^\s*VITE_SSH_DEBUG\s*=', '').Trim().Trim('"', "'") }
+}
+if ($sshDebug -eq '1') {
+  Write-Host "  SSH 终端字节调试日志: 已开启 (VITE_SSH_DEBUG=1)" -ForegroundColor Yellow
+} else {
+  Write-Host "  SSH 终端字节调试日志: 关闭 (在 .env 中设置 VITE_SSH_DEBUG=1 可开启)" -ForegroundColor DarkGray
+}
+
 $env:APP_VERSION = $version
 docker compose build @args
 

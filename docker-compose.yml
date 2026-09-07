@@ -6,6 +6,11 @@ services:
       dockerfile: Dockerfile
       args:
         APP_VERSION: ${APP_VERSION:-dev}
+        # SSH 终端字节级调试日志的构建期默认值（1 开启）。Vite 在构建时把
+        # VITE_* 变量内联进 bundle，因此它必须作为 build arg 传入，放在
+        # environment 里是无效的。改动后需重新执行 ./build.sh 才会生效；
+        # 浏览器端 localStorage 的 sshDebug 可在运行时覆盖该默认值。
+        VITE_SSH_DEBUG: ${VITE_SSH_DEBUG:-0}
     network_mode: host
     environment:
       - DATABASE_URL=file:/app/data/ops-dashboard.db

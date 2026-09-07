@@ -7,6 +7,9 @@
 #
 # 跳过自动 tag（单次）:
 #   SKIP_AUTO_TAG=1 git commit -m "..."
+#
+# 跳过自动 push（单次，仍会自动打 tag）:
+#   SKIP_AUTO_PUSH=1 git commit -m "..."
 # =============================================================================
 set -eu
 
@@ -73,9 +76,12 @@ if SKIP_AUTO_TAG=1 git tag -a "$next_tag" -m "Auto tag $next_tag" 2>/dev/null; t
     # 推送当前分支 + tag 到远端（origin）
     # push.followTags=true 已在 .git/config 中配置，push 分支时会自动携带可达 tag。
     # 此处显式 push 分支+tag 作为即时推送，失败时仅警告，不阻断提交。
-    if git remote get-url origin >/dev/null 2>&1; then
-        current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
-        push_ref="${current_branch:-HEAD}"
+    # 设置 SKIP_AUTO_PUSH=1 可跳过自动推送（例如由 GitHub Desktop 手动 Push）。
+    current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+    push_ref="${current_branch:-HEAD}"
+    if [ "${SKIP_AUTO_PUSH:-0}" = "1" ]; then
+        printf '[post-commit] auto push skipped (SKIP_AUTO_PUSH=1). push manually via GitHub Desktop or: git push origin %s --tags\n' "$push_ref"
+    elif git remote get-url origin >/dev/null 2>&1; then
         git push origin "$push_ref" "$next_tag" >/dev/null 2>&1 && \
             printf '[post-commit] pushed %s + tag %s to origin\n' "$push_ref" "$next_tag" || \
             printf '[post-commit] warn: push failed (auth/network?). run manually: git push origin %s --tags\n' "$push_ref"

@@ -10,6 +10,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../auth';
+import { logSshBytes, writeSshData } from '../utils/sshDebug';
 import '@xterm/xterm/css/xterm.css';
 
 const { Text } = Typography;
@@ -39,6 +40,8 @@ export default function SshTerminalModal({
   const socketRef = useRef<Socket | null>(null);
   // Stores ssh:connect payload when socket connects before xterm is ready
   const pendingConnectRef = useRef<Record<string, string | number> | null>(null);
+  // True once the Modal open animation has finished (rc-dialog steals focus at that moment)
+  const modalOpenedRef = useRef(false);
   const [connState, setConnState] = useState<ConnState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [form] = Form.useForm<{ username: string; password: string }>();
@@ -59,6 +62,7 @@ export default function SshTerminalModal({
       setConnState('idle');
       setErrorMsg('');
       form.resetFields();
+      modalOpenedRef.current = false;
     }
   }, [open, cleanup, form]);
 
@@ -86,13 +90,23 @@ export default function SshTerminalModal({
     term.loadAddon(fitAddon);
     term.open(termRef.current);
     fitAddon.fit();
+    // Give the terminal keyboard focus so input reaches the SSH stream
+    term.focus();
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
     // Forward keyboard input to SSH
     term.onData((data) => {
+      logSshBytes('OUT', data);
       socketRef.current?.emit('ssh:data', { data });
+    });
+    // xterm's binary channel yields a Latin-1 byte string (mouse reports that
+    // vim enables on startup, pasted binary data). It MUST be flagged so the
+    // backend writes raw bytes instead of UTF-8 re-encoding them.
+    term.onBinary((data) => {
+      logSshBytes('OUT', data);
+      socketRef.current?.emit('ssh:data', { data, binary: true });
     });
 
     // If ssh:connect was deferred (socket connected before xterm mounted), send it now
@@ -121,6 +135,42 @@ export default function SshTerminalModal({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ── Focus guard ──────────────────────────────────────────────────────────
+  // Ant Design Modal (rc-dialog) focuses a hidden sentinel <div tabIndex=0>
+  // when the open animation finishes, and can re-grab focus at other times.
+  // That steals keyboard focus from xterm.js's hidden textarea, so keystrokes
+  // never reach the SSH stream — vim/htop/top appear frozen and cannot be
+  // edited or exited. Whenever focus lands on a NON-interactive element
+  // outside the terminal, immediately hand it back to xterm. Interactive
+  // elements (buttons/inputs/links) are left alone so the title-bar controls
+  // and the credential form remain usable.
+  useEffect(() => {
+    if (!open) return;
+    const isInteractive = (el: Element | null): boolean =>
+      !!el?.closest('button, input, textarea, select, a, [contenteditable="true"]');
+    const onFocusIn = (e: FocusEvent) => {
+      const term = xtermRef.current;
+      const surface = termRef.current;
+      if (!term || !surface) return;
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (surface.contains(target)) return; // focus inside xterm — fine
+      if (isInteractive(target)) return; // user interacting with a control — fine
+      term.focus(); // reclaim keyboard focus for the terminal
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [open]);
+
+  // NOTE: Escape is deliberately NOT intercepted here.
+  // A previous attempt hijacked Escape at the document CAPTURE phase and
+  // emitted `\x1b` manually with stopImmediatePropagation(). Capture runs
+  // BEFORE xterm's own keydown listener, so that actively prevented xterm from
+  // processing Escape, while the hand-rolled byte arrived out of band — which
+  // desynced vim's escape-sequence parser instead of helping. xterm.js already
+  // translates Escape to `\x1b`, and this Modal sets `keyboard={false}` so
+  // rc-dialog never consumes it. Leave the native path alone.
 
   // ── Connect to SSH via WebSocket ─────────────────────────────────────────
   const connectSsh = useCallback(
@@ -161,9 +211,17 @@ export default function SshTerminalModal({
         setErrorMsg(`WebSocket 连接失败: ${err.message}`);
       });
 
-      socket.on('ssh:data', ({ data }: { data: string }) => {
+      socket.on('ssh:data', (data: unknown) => {
         setConnState((prev) => prev === 'connecting' ? 'connected' : prev);
-        xtermRef.current?.write(data);
+        const term = xtermRef.current;
+        if (!term) return;
+        // Normalize every possible binary shape (ArrayBuffer / TypedArray /
+        // Blob / string). The old ArrayBuffer-only check silently dropped
+        // Uint8Array/Blob frames — which is what froze vim's full-screen
+        // repaint. See writeSshData() for the full explanation.
+        if (!writeSshData(term, data)) {
+          logSshBytes('IN', '' /* unknown shape — logged as empty */);
+        }
       });
 
       socket.on('ssh:error', ({ message }: { message: string }) => {
@@ -200,11 +258,25 @@ export default function SshTerminalModal({
   // ── After xterm is mounted, fit and mark connected ───────────────────────
   useEffect(() => {
     if (connState !== 'connecting') return;
-    // Give xterm a tick to mount, then fit
+    // Give xterm a tick to mount, then fit and focus
     const t = setTimeout(() => {
       fitAddonRef.current?.fit();
+      xtermRef.current?.focus();
     }, 100);
     return () => clearTimeout(t);
+  }, [connState]);
+
+  // ── Once the SSH session is live, re-focus and sync PTY size ────────────
+  // Full-screen TUI apps (vim/htop/top) need correct terminal dimensions and
+  // keyboard focus; re-assert both as soon as the first output arrives.
+  useEffect(() => {
+    if (connState !== 'connected') return;
+    fitAddonRef.current?.fit();
+    xtermRef.current?.focus();
+    const term = xtermRef.current;
+    if (term && socketRef.current?.connected) {
+      socketRef.current.emit('ssh:resize', { cols: term.cols, rows: term.rows });
+    }
   }, [connState]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -285,8 +357,20 @@ export default function SshTerminalModal({
       title={titleBar}
       open={open}
       onCancel={handleClose}
+      afterOpenChange={(visible) => {
+        if (visible) {
+          // rc-dialog focuses a hidden sentinel when the open animation ends;
+          // hand keyboard focus back to the terminal right after.
+          modalOpenedRef.current = true;
+          xtermRef.current?.focus();
+        } else {
+          modalOpenedRef.current = false;
+        }
+      }}
       footer={null}
       width="90vw"
+      keyboard={false}
+      maskClosable={false}
       styles={{
         body: { padding: 0, background: '#1a1a2e', borderRadius: '0 0 8px 8px' },
         header: { background: '#0d0d1a', borderBottom: '1px solid #333', borderRadius: '8px 8px 0 0' },
@@ -355,7 +439,11 @@ export default function SshTerminalModal({
 
       {/* Terminal container */}
       {isTerminalVisible && (
-        <div ref={termRef} className="ssh-terminal-surface" />
+        <div
+          ref={termRef}
+          className="ssh-terminal-surface"
+          onClick={() => xtermRef.current?.focus()}
+        />
       )}
     </Modal>
   );

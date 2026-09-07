@@ -7,6 +7,10 @@ RUN npm install
 COPY frontend/index.html frontend/vite.config.ts frontend/tsconfig.json frontend/tsconfig.tsbuildinfo* ./
 COPY frontend/src ./src
 COPY frontend/public* ./public/
+# Vite inlines VITE_* vars at build time, so this must be an ENV before the
+# build runs — a runtime container env var cannot affect the compiled bundle.
+ARG VITE_SSH_DEBUG=0
+ENV VITE_SSH_DEBUG=${VITE_SSH_DEBUG}
 RUN npm run build
 
 # Stage 2: Build backend

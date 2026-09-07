@@ -156,19 +156,22 @@ export class SshGateway implements OnGatewayConnection, OnGatewayDisconnect {
       connectConfig,
       initCols,
       initRows,
-      (data) => client.emit('ssh:data', { data }),
+      // Emit raw bytes. socket.io transmits Buffer/ArrayBuffer as a binary
+      // frame; xterm.js decodes UTF-8 across chunk boundaries correctly, so
+      // full-screen TUI apps (vim/htop/top) render without corruption.
+      (data: Buffer) => client.emit('ssh:data', data),
       () => client.emit('ssh:close', { message: 'SSH 连接已关闭' }),
       (msg) => client.emit('ssh:error', { message: msg }),
     );
   }
 
-  /** Client sends keyboard input */
+  /** Client sends keyboard input; `binary` payloads are Latin-1 byte strings. */
   @SubscribeMessage('ssh:data')
   handleData(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { data: string },
+    @MessageBody() payload: { data: string; binary?: boolean },
   ) {
-    this.sshService.write(client.id, payload.data);
+    this.sshService.write(client.id, payload.data, payload.binary === true);
   }
 
   /** Client resizes terminal window */

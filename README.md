@@ -491,14 +491,17 @@ OIDC_FRONTEND_URL=
 ### 技术实现
 
 - **前端**：`@xterm/xterm` + `@xterm/addon-fit` 渲染终端，`socket.io-client` 建立 WebSocket 连接
-- **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接；终端输出使用 `utf8` 编码，正确显示中文及 ANSI 颜色序列
+- **后端**：NestJS `@WebSocketGateway` (`/ssh` namespace) + `ssh2` 库建立 SSH 连接；终端输出以**原始字节（Buffer）二进制帧**下发，不在后端做 `toString('utf8')` 解码，由 xterm.js 负责跨分片的 UTF-8 解码，正确显示中文及 ANSI 颜色序列
 - **认证**：WebSocket 握手时验证 JWT Token（从 `handshake.auth.token` 读取），未登录连接自动拒绝
 - **私钥安全**：私钥在后端解密后直接传给 `ssh2`，不经过前端传输
 - **凭据区分**：`credWebEnabled + username/password` 为 Web 系统账号信息（仅记录用途）；`privateKey + sshEnabled` 为 Linux SSH凭据，两者共存于同一 Credential 记录但语义不同，均通过各自的启用开关控制；两个开关同时关闭时凭据记录会被自动删除
 - **SSH 启用控制**：`Credential.sshEnabled` 字段（默认 `false`），只有管理员显式开启后，前端才显示 SSH 按钮，后端才接受该资源的 SSH 连接请求
 - **SSH 主机**：从资源 `url` 字段解析 hostname（如 `https://ga.anytoken.cloud` → `ga.anytoken.cloud`），端口固定 22
 - **SSH 用户名**：固定 `root`（密码模式下用户可自定义）
-- **PTY 尺寸同步**：前端在建立连接时携带实际终端尺寸（`cols/rows`）初始化 PTY；xterm.js 挂载后立即发送 `ssh:resize` 修正尺寸；若 socket `connect` 事件先于 xterm 渲染触发，则暂存 payload 待 xterm 就绪后再发出，确保 `ls`、`top`、`htop` 等命令输出不错位
+- **PTY 尺寸同步**：前端在建立连接时携带实际终端尺寸（`cols/rows`）初始化 PTY；xterm.js 挂载后立即发送 `ssh:resize` 修正尺寸；若 socket `connect` 事件先于 xterm 渲染触发，则暂存 payload 待 xterm 就绪后再发出；后端对 shell 就绪前到达的 `ssh:resize` 进行缓存，待 PTY 建立后立即应用，确保 `ls`、`top`、`htop` 等命令输出不错位
+- **全屏 TUI 程序支持（vim/htop/top 等）**：PTY 以 `TERM=xterm-256color` 分配；SSH 终端 Modal 设置 `keyboard={false}` + `maskClosable={false}`，避免 Ant Design Modal 拦截 `Escape` 键（vim 退出插入模式、`:q` 退出等关键按键可完整送达远端）；xterm.js 挂载后及连接建立后均显式 `term.focus()` 并点击终端区域可重新聚焦，保证键盘输入持续转发至 SSH 流；同时转发 `onBinary` 二进制输入；连接建立后再次 `fit` + 发送 `ssh:resize`，保证全屏程序获得正确的终端尺寸
+- **焦点守卫（focus guard）**：Ant Design Modal（rc-dialog）在打开动画结束时会聚焦一个隐藏的哨兵元素（`<div tabIndex=0>`），从而抢走 xterm.js 隐藏输入框的键盘焦点，导致按键无法送达 SSH 流、vim 等全屏程序"假死"无法编辑/退出。前端通过 `document` 级 `focusin` 监听，当焦点落在终端外的非交互元素上时立即将焦点交还 xterm；Modal 的 `afterOpenChange` 回调与连接建立后的多次延时 `focus()` 进一步覆盖焦点被抢占的时间窗口；标题栏按钮、凭据表单等交互元素不受影响
+- **vim 花屏/无法编辑的真正根因（二进制透传修复）**：此前 vim 打开文件后界面错乱、无法正常编辑的根因**并非焦点问题**（键盘输入本就可用——能敲 `vim 文件名` 并回车即证明），而是**输出侧的 UTF-8 解码被破坏**。SSH/TCP 会在任意字节边界切分数据块，后端此前对每个 chunk 单独执行 `data.toString('utf8')`，一旦某个多字节字符（vim 状态行、边框绘制字符 `─│┌┐`、任何非 ASCII）被拆到两个 chunk，就会各自解码出替换字符（�），导致全屏 TUI 渲染错乱；而纯 ASCII 的普通 shell 命令为单字节、几乎不受影响——这正好解释了"普通命令正常、vim 不可用"。**修复方案**：后端 `ssh.service` 的 `stream.on('data')` 与 `stderr` 直接把原始 `Buffer` 交给回调，gateway 通过 `client.emit('ssh:data', buffer)` 以 socket.io 二进制帧下发；前端 `ssh:data` 监听收到 `ArrayBuffer` 时以 `term.write(new Uint8Array(data))` 写入，交由 xterm.js 的流式解码器跨分片正确还原 UTF-8（并保留字符串分支向后兼容）
 
 ### WebSocket 事件
 
