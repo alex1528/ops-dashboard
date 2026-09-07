@@ -8,7 +8,7 @@ import { SystemService } from '../system/system.service';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { IsNotEmpty, IsString, IsOptional, IsEmail, MaxLength, MinLength } from 'class-validator';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
 class LoginDto {

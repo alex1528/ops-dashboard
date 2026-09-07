@@ -61,7 +61,7 @@ export class MfaService {
     if (!user.mfaEnabled) throw new BadRequestException('MFA 未启用');
 
     // Require password verification to disable MFA
-    const bcrypt = await import('bcrypt');
+    const bcrypt = await import('bcryptjs');
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new BadRequestException('密码错误');
 
