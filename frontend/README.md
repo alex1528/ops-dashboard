@@ -1,6 +1,6 @@
 # Ops Dashboard 前端
 
-基于 **React 19 + Ant Design 5 + Vite 6** 的单页应用，覆盖运维总览、状态监控、资源/用户管理、个人设置、SSH 终端等页面，以及「资源 URL 一键复制」、「首次登录强制改密」、「强制绑定 MFA」和「二级分组」流程。
+基于 **React 19 + Ant Design 5 + Vite 6** 的单页应用，覆盖运维总览、状态监控、资源/用户管理、个人设置、SSH 终端等页面，以及「资源 URL 一键复制」、「首次登录强制改密」、「强制绑定 MFA」、「OIDC 单点登录」和「二级分组」流程。
 
 > 当前目录的所有路径均相对于 `frontend/`。
 
@@ -15,6 +15,7 @@ frontend/
 │   │   ├── Login.tsx                    # 登录页
 │   │   ├── ForceChangePassword.tsx      # 首次登录强制改密页
 │   │   ├── ForceMfaSetup.tsx            # 强制绑定 MFA 页
+│   │   ├── OidcCallback.tsx             # OIDC 登录回调页（接收 JWT / 展示错误）
 │   │   └── ...                          # AdminLayout、UsersPage、ProfilePage 等
 │   ├── components/
 │   │   ├── CopyButton.tsx               # 通用「复制 URL」按钮
@@ -240,6 +241,75 @@ const markMfaSetupComplete = useCallback(() => {
 ### `api.ts` 拦截器对 `403 MUST_SETUP_MFA` 的兜底
 
 与改密拦截器同级，当任何请求返回 `403 { code: 'MUST_SETUP_MFA' }` 时，自动跳转到 `/force-setup-mfa`。
+
+## OIDC 单点登录（Authentik）
+
+前端在 OIDC 流程中只承担两件事：在登录页**按需**渲染入口按钮，以及在回调页接收后端签发的 JWT。授权码交换、userinfo 拉取、用户匹配全部在后端完成，前端不接触 Authentik 的任何凭据。
+
+> Authentik 侧配置与环境变量见仓库根目录 `README.md`；后端实现细节见 `backend/README.md` 的「OIDC 单点登录」一节。
+
+### `pages/Login.tsx` 中的入口按钮
+
+挂载时并行探测两个开关，二者互不影响、失败都静默忽略（`.catch(() => {})`），因此后端未配置 OIDC 时登录页表现与之前完全一致：
+
+```ts
+api.get('/system/settings/allow_registration')
+  .then((res) => setAllowRegistration(res.data.allowRegistration))
+  .catch(() => {});
+
+api.get('/oidc/status')
+  .then((res) => setOidcEnabled(res.data.enabled))
+  .catch(() => {});
+```
+
+渲染条件是 `mode === 'login' && oidcEnabled`，即注册态与 MFA 验证码态下不显示该按钮，避免流程交叉。
+
+按钮点击后是**整页跳转**而非 axios 请求：
+
+```ts
+onClick={() => { window.location.href = '/api/oidc/login'; }}
+```
+
+`/api/oidc/login` 返回 302，必须由浏览器跟随重定向到 Authentik。用 XHR 发起会被跨域拦住，且后端下发的 `oidc_state` cookie 也无法在后续跳转中带上。
+
+### `/oidc/callback` 路由 → `pages/OidcCallback.tsx`
+
+后端处理完回调后会 302 到本页，用 query string 传递结果，因此本页需同时处理成功与失败两条路径：
+
+| Query | 处理 |
+| --- | --- |
+| `?error=<msg>` | 直接渲染 `<Result status="error">`，标题「OIDC 登录失败」，副标题为后端消息，附「返回登录页」链接 |
+| `?token=<jwt>` | 写入 `localStorage`，校验后跳转 `/admin` |
+| 两者都无 | 渲染错误页「未收到有效的认证令牌」 |
+
+成功路径的关键顺序：
+
+```ts
+localStorage.setItem('token', token);
+
+api.get('/auth/me')
+  .then(() => {
+    // 成功后用整页跳转，避免 axios 拦截器抢先 redirect
+    window.location.href = '/admin';
+  })
+  .catch(() => {
+    localStorage.removeItem('token');
+    setError('令牌验证失败，请重新登录');
+  });
+```
+
+两处细节值得注意：
+
+- **先校验再跳转**：直接跳 `/admin` 会让一个无效 token 留在 `localStorage` 里，后续请求被 401 拦截器踢回登录页，用户看到的是莫名其妙的闪跳。这里先用 `/auth/me` 确认 token 可用，失败则清除并给出明确提示。
+- **用 `window.location.href` 而非 `navigate()`**：整页跳转会重建应用，让 `AuthProvider` 基于新 token 重新初始化。若用 React Router 软跳转，`AuthProvider` 仍持有旧的空用户状态，容易与 axios 拦截器竞争导致被弹回登录页。
+
+### 与路由守卫的关系
+
+`/oidc/callback` 位于 `<ForceChangeRouteGuard>` + `<ForceMfaRouteGuard>` 内部，但不会被拦截：两个守卫都依赖 `useAuth()` 的 `user`，而本页刚写入 token 尚未建立会话，`user` 为空即放行；且后端保证 OIDC 用户的 `mustChangePassword` 与 `mustSetupMfa` 恒为 `false`，跳转 `/admin` 后也不会落入强制流程。
+
+### 本地开发注意
+
+后端下发的 `oidc_state` cookie 带 `secure: true`，**HTTP 环境下浏览器不会保存**，回调必然失败并提示「状态验证失败（Cookie 丢失）」。因此 OIDC 登录无法在 `http://localhost:5173` 下直接联调，需通过 HTTPS 访问部署环境验证。开发本地页面样式时，可临时把 `oidcEnabled` 初值设为 `true` 以渲染按钮。
 
 ## 二级分组（分组 + 子分组）
 

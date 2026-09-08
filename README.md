@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-运维统一入口看板 —— 汇总目标网址及相关资源到统一 Dashboard 页面，支持状态监控、凭据管理和一键直达。
+运维统一入口看板 —— 聚合目标资源到统一 Dashboard，支持 HTTP 健康检查、凭据加密管理、一键直达与只读状态页。支持本地账号（含 MFA 两步验证）与 Authentik OIDC 单点登录双模式接入。NestJS + React + SQLite + Docker 单机部署。
 
 ## 技术栈
 
@@ -19,6 +19,7 @@
 cp .env.example .env
 # 必填：修改 JWT_SECRET、MASTER_KEY、ADMIN_PASSWORD
 # 可选：配置 SMTP_HOST 等邮件通知字段
+# 可选：配置 OIDC_ISSUER 等字段启用 Authentik 单点登录（需 HTTPS）
 ```
 
 > **重要**：本仓库存在两份 `.env`，承担不同角色，**不要混用**：
@@ -128,7 +129,7 @@ SKIP_AUTO_TAG=1 git commit -m "..."
 - ✅ 公开注册：管理员可在「系统设置」页面开启/关闭公开注册开关（默认关闭）；开启后登录页显示注册入口，新用户自行注册为普通用户角色；系统无任何用户时，第一个注册者自动成为管理员（兼容 `.env` 中 `ADMIN_USERNAME`/`ADMIN_PASSWORD` 约束）；非首个用户注册后需通过激活邮件完成账号激活方可登录
 - ✅ 邮件激活账号：管理员创建用户时密码可选——提供密码则自动标记为已激活（首次登录仍需强制改密），未设置密码则需通过激活邮件设置密码并激活；自助注册用户同样需邮件激活（首个管理员用户除外）；用户管理页面显示激活状态，支持管理员手动重新发送激活邮件或直接「置为激活」；激活流程包括设置密码（≥8位，含字母和数字）并强制绑定 MFA；未激活用户无法登录
 - ✅ 资源权限管理：管理员可在「用户管理」页面为普通用户配置资源访问权限，支持按分组授权（授权整个分组下全部资源）或按单个资源授权；权限采用树形多选 UI（分组→资源层级结构）；被授权的资源，普通用户可查看凭据，且仅在「启用Web系统账号凭据」开关（`Credential.webEnabled`）尚未开启时可首次启用并填写用户名/密码/附加信息（一旦开关已被任何人开启，普通用户即不再具备启用和录入权限），不可修改资源基本信息或 SSH 配置，不可删除资源；前端编辑权限直接依据后端返回的资源列表可见性判定（后端 `GET /resources` 已按权限过滤），无需前端二次校验 `permissions` 数组；后端 `PUT /resources/:id` 对非所有者用户检查 `Credential.webEnabled` 字段决定是否允许凭据录入，三重权限校验防止越权访问
-- ✅ OIDC 单点登录（Authentik）：支持通过 Authentik 进行 OIDC 授权码登录，与用户名/密码登录双模式并存；OIDC 用户首次登录时自动创建本地账号，按 Authentik 组自动映射 admin/user 角色；OIDC 用户跳过强制改密和强制绑定 MFA 流程；不配置 OIDC 环境变量时该功能自动禁用，不影响现有登录方式
+- ✅ OIDC 单点登录（Authentik）：支持通过 Authentik 进行 OIDC 授权码登录，与用户名/密码登录双模式并存；OIDC 用户首次登录时自动创建本地账号，按 Authentik 组自动映射 admin/user 角色；OIDC 用户跳过强制改密和强制绑定 MFA 流程；不配置 OIDC 环境变量时该功能自动禁用，不影响现有登录方式。**需经 HTTPS 访问**（state cookie 带 `secure` 属性）
 - ✅ MFA 两步验证：支持 Google Authenticator 等 TOTP 应用，用户自行绑定/解绑，管理员可重置他人 MFA；MFA 密钥在数据库中使用 AES-256-GCM 加密存储（与登录凭据采用相同加密方案），旧版明文密钥自动兼容；新用户首次登录改密后强制绑定 MFA（`mustSetupMfa` 标志），历史未启用 MFA 的用户也会被强制设置
 - ✅ 邮件通知：管理后台「邮件设置」页面查看 SMTP 状态及发送测试邮件（未配置时自动跳过）
 - ✅ 关于页面：「关于」页面展示系统版本号（取自 git tag）、技术栈、功能模块等信息
@@ -368,6 +369,39 @@ docker compose up -d                         # 重启时自动从 backup/ 恢复
 > 注：`docker-compose.yml` 中带 `${VAR:?中文消息}` 的 environment 条目必须用双引号整体包裹（如 `"MASTER_KEY=${MASTER_KEY:?...}"`），否则消息中的中文标点（如`:`）会被 YAML 解析为映射分隔符，触发 `services.ops-dashboard.environment.[N]: unexpected type map[string]interface {}`。
 > 任何错误信息都只引用变量名，不会回显 `MASTER_KEY` / `JWT_SECRET` / `ADMIN_PASSWORD` 的真实值。
 
+### 登录页不显示「通过 Authentik 登录」按钮
+
+按钮的显示条件是 `GET /api/oidc/status` 返回 `{ enabled: true }`，而 `enabled` 要求配置解析与发现文档拉取**都**成功。按以下顺序排查：
+
+| 根因 | 定位方式 | 处理 |
+| --- | --- | --- |
+| `OIDC_ISSUER` 未配置 | 容器日志出现 `OIDC_ISSUER not configured — OIDC login disabled`（warn） | 在仓库根目录 `.env` 中填写 `OIDC_ISSUER` 后重建容器 |
+| 发现文档拉取失败 | 容器日志出现 `Failed to fetch OIDC discovery: ...`（error） | 见下一条 |
+| 变量只写在 `backend/.env` | 同 `MASTER_KEY` 场景，Compose 不读该文件 | 同步到仓库根目录 `.env` |
+
+> 配置只在应用启动时读取一次（`OnModuleInit`）。改完 `.env` 必须重建容器，重启浏览器或刷新页面无效。
+
+### `Failed to fetch OIDC discovery`
+
+后端启动时会请求 `${OIDC_ISSUER}/.well-known/openid-configuration`，失败即整体禁用 OIDC。常见原因：
+
+- **Issuer URL 写错**：Authentik 的 Issuer 形如 `https://authentik.example.com/application/o/<application-slug>`，不是 Authentik 的站点根地址。以 Provider 详情页显示的 OpenID Configuration Issuer 为准（末尾斜杠会被自动去除，无需纠结）。
+- **容器内 DNS 或网络不通**：可进容器验证 `docker compose exec ops-dashboard wget -qO- ${OIDC_ISSUER}/.well-known/openid-configuration`。若 Authentik 与本服务在同一 Docker 网络内，宿主机域名可能无法解析。
+- **Authentik 使用自签证书**：Node 会拒绝不受信任的证书。应把 CA 证书导入容器信任链，不建议关闭校验。
+
+由于拉取只在启动时进行，若 Authentik 晚于本服务启动，本服务会一直处于 OIDC 禁用状态，需在 Authentik 就绪后重启本服务。
+
+### OIDC 登录后角色不对
+
+角色由 userinfo 返回的 `groups` 与 `OIDC_ADMIN_GROUP` 比对决定，比对为**精确字符串匹配**。若预期为 admin 却得到 user：
+
+1. 确认 Authentik 的 Provider Scope mapping 包含 `groups` claim，否则 `groups` 为空数组，所有人都是 user；
+2. 确认 `OIDC_SCOPES` 包含 `profile`（`groups` 由 profile mapping 提供）；
+3. 核对组名大小写与 `OIDC_ADMIN_GROUP` 完全一致；
+4. 查看该次登录的 `auth.oidc_login` 审计日志，`detail` 里的 `groups=` 就是后端实际收到的组列表，可直接确认问题在 Authentik 侧还是配置侧。
+
+角色每次登录都会重新同步，Authentik 侧调整组后让用户重新登录即可生效，无需改动本地数据。
+
 ## 用户管理
 
 - 仅管理员可在后台 `/admin/users` 创建、编辑、删除用户
@@ -473,6 +507,32 @@ OIDC_FRONTEND_URL=
 1. 优先按 OIDC `sub`（Authentik 用户 ID）匹配已关联的本地用户
 2. 若无关联，尝试按 `preferred_username` 或 `email` 匹配已有本地用户并自动关联
 3. 若均无匹配，自动创建新用户（`activated=true`，无本地密码，角色按组映射）
+
+> 第 2 步的自动关联意味着：已存在的本地账号一旦被 Authentik 侧同名/同邮箱用户登录，就会被接管并按组重设角色。若不希望本地管理员账号被接管，请让其用户名与邮箱都不同于任何 Authentik 用户。
+
+### 安全约束
+
+- **必须 HTTPS**：`/api/oidc/login` 下发的 `oidc_state` cookie 带 `secure: true`，浏览器在纯 HTTP 站点上不会保存它，回调阶段会因取不到 cookie 而报「状态验证失败（Cookie 丢失）」。因此 OIDC 登录在 HTTP 环境下无法使用，必须经 HTTPS 访问（反向代理终止 TLS 亦可）。
+- **CSRF 防护**：`state` 为 16 字节随机值，存于 `httpOnly` + `sameSite=lax` cookie，有效期 10 分钟，回调时逐字比对并立即清除。
+- **`OIDC_REDIRECT_URI` 必须与 Authentik 中登记的完全一致**（含协议、域名、路径，不能有多余斜杠），否则 Authentik 直接拒绝授权请求。
+- **令牌经 URL 传递**：后端签发的 JWT 通过 `?token=` 重定向给前端，会出现在浏览器历史与反向代理日志中。若对此敏感，建议关闭代理的 query string 日志记录。
+- OIDC 用户本地 `password` 字段为空字符串，无法通过用户名/密码登录，只能走 OIDC 入口。
+
+### 错误处理
+
+回调过程中的所有异常都以重定向形式回传前端 `/oidc/callback?error=<msg>`，由前端渲染为错误页（附「返回登录页」入口），不会给用户抛出原始 JSON：
+
+| 错误提示 | 触发条件 |
+| --- | --- |
+| `缺少授权码，请重试` | 回调 URL 未携带 `code` |
+| `状态验证失败（Cookie 丢失），请重试` | `oidc_state` cookie 缺失或与回调 `state` 不一致（多数由非 HTTPS 访问导致） |
+| `OIDC token exchange failed` | 用 `code` 换 token 失败（Client Secret 错误、`redirect_uri` 不匹配等） |
+| `Failed to fetch OIDC userinfo` | userinfo 端点返回非 2xx |
+| `令牌验证失败，请重新登录` | 前端拿到 token 但 `GET /api/auth/me` 校验失败（前端侧提示） |
+
+### 审计
+
+每次成功的 OIDC 登录都会写入一条 `auth.oidc_login` 审计日志，`detail` 字段记录本次从 Authentik 取到的组列表（`groups=a,b,c`），便于回溯角色映射结果。
 
 ## WebTerminal SSH
 

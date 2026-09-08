@@ -24,7 +24,7 @@ export default function AboutPage() {
         <div className="about-header-body">
           <Title level={2} style={{ margin: 0 }}>🖥 Ops Dashboard</Title>
           <Text type="secondary" style={{ fontSize: 14, display: 'block', marginTop: 8 }}>
-            运维统一入口看板
+            运维统一入口看板 —— 聚合目标资源，支持健康检查、凭据加密、一键直达与 OIDC 单点登录
           </Text>
           <div className="about-version-tag">
             {loading ? (
@@ -70,6 +70,7 @@ export default function AboutPage() {
               <Tag>凭据加密</Tag>
               <Tag>用户管理</Tag>
               <Tag>MFA 两步验证</Tag>
+              <Tag color="purple">OIDC 单点登录</Tag>
               <Tag>邮件通知</Tag>
               <Tag>凭据加密存储</Tag>
               <Tag>数据库备份</Tag>
